@@ -1,88 +1,39 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset='utf-8'>
+	<head>
+		<title>Cytoscape Web</title>
+		
+		<link rel="stylesheet" href="jquery.qtip.min.css" />
+		<link rel="stylesheet" href="style.css" />
+		
+		
+		
+		<script type="text/javascript" src="jquery.layout-latest.js"></script>
+		<script type="text/javascript" src="jquery.qtip.min.js"></script>
+		
+		<script type="text/javascript" src="layout.js"></script>
+		<script type="text/javascript" src="cy-init.js"></script>
+		<script type="text/javascript" src="qtips.js"></script>
+		<script type="text/javascript" src="apply-layouts.js"></script>
+	</head>
+	
+	<body>
+		
+		<a id="fork-me-link" href="https://github.com/Cytoweb/cytoscapeweb"><div id="fork-me"></div></a>
+	
+		<div id="header">
+			<ul id="navigation">
+				<li><a href="https://github.com/Cytoweb/cytoscapeweb" tooltip="Look at the source code of Cytoscape Web.">Source code</a></li>
+				<li><a href="https://github.com/Cytoweb/cytoscapeweb/wiki" tooltip="Get more information about Cytoscape Web.">About & documentation</a></li>
+				<li><a href="https://github.com/Cytoweb/cytoscapeweb/wiki/Core" tooltip="Read the developer documentation for Cytoscape Web.">API reference</a></li>
+				<li><a href="#" tooltip="Download plugins for Cytoscape Web.">Plugins</a></li>
+			</ul>
+			<div id="title">
+				<h1>Cytoscape Web</h1> <span id="description" tooltip="... just like the one you see below.">a jQuery plugin that visualises graphs</span>
+			</div>
+		</div>
 
-  <title>Cytoweb/cytoscapeweb @ GitHub</title>
-
-  <style type="text/css">
-    body {
-      margin-top: 1.0em;
-      background-color: #c9de3a;
-      font-family: Helvetica, Arial, FreeSans, san-serif;
-      color: #000000;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-    h1 { font-size: 3.8em; color: #3621c5; margin-bottom: 3px; }
-    h1 .small { font-size: 0.4em; }
-    h1 a { text-decoration: none }
-    h2 { font-size: 1.5em; color: #3621c5; }
-    h3 { text-align: center; color: #3621c5; }
-    a { color: #3621c5; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-    pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
-  </style>
-</head>
-
-<body>
-  <a href="https://github.com/Cytoweb/cytoscapeweb"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
-
-  <div id="container">
-
-    <div class="download">
-      <a href="https://github.com/Cytoweb/cytoscapeweb/zipball/master">
-        <img border="0" width="90" src="https://github.com/images/modules/download/zip.png"></a>
-      <a href="https://github.com/Cytoweb/cytoscapeweb/tarball/master">
-        <img border="0" width="90" src="https://github.com/images/modules/download/tar.png"></a>
-    </div>
-
-    <h1><a href="https://github.com/Cytoweb/cytoscapeweb">cytoscapeweb</a>
-      <span class="small">by <a href="https://github.com/Cytoweb">Cytoweb</a></span></h1>
-
-    <div class="description">
-      An in-progress, experimental version of Cytoscape Web using SVG and jQuery
-    </div>
-
-    
-
-    
-
-    
-
-    
-
-    
-      <h2>Authors</h2>
-      <p>Christian Lopes (chrtannus@gmail.com)<br/>Max Franz (maxkfranz@gmail.com)<br/>      </p>
-    
-
-    
-      <h2>Contact</h2>
-      <p> (cytoscapeweb-dev@googlegroups.com)<br/>      </p>
-    
-
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="https://github.com/Cytoweb/cytoscapeweb/zipball/master">zip</a> or
-      <a href="https://github.com/Cytoweb/cytoscapeweb/tarball/master">tar formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/Cytoweb/cytoscapeweb</pre>
-    </p>
-
-    <div class="footer">
-      get the source code on GitHub : <a href="https://github.com/Cytoweb/cytoscapeweb">Cytoweb/cytoscapeweb</a>
-    </div>
-
-  </div>
-
-</body>
+		<div id="cy"></div>	
+		
+	</body>
 </html>
