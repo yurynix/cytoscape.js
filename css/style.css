@@ -90,7 +90,7 @@ a#fork-me-link:hover #fork-me {
 	top: 0;
 	height: 149px;
 	width: 149px;
-	background: url("github.png");
+	background: url("../img/github.png");
 	z-index: 999;
 }
 
