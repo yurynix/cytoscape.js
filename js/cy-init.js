@@ -1,7 +1,9 @@
 $(function(){
 	
+	// you have to replace this when you add new nodes
 	var presetLayout = {
-		name: "preset"
+		name: "preset",
+		positions: {"cy":{"x":738.5212157568777,"y":289.0795263394625},"layouts":{"x":741.1874058454833,"y":171.64761733767347},"grid":{"x":629.8419176767356,"y":159.03836091945618},"random":{"x":704.4077453015509,"y":89.62589330524607},"arbor":{"x":828.5441799618371,"y":105.9330337698272},"preset":{"x":870.776889667075,"y":163.28478242037903},"styles":{"x":629.2050551870032,"y":352.8455726687564},"size":{"x":617.7825852551168,"y":440.1819169150772},"initial":{"x":534.7103781237981,"y":309.3550379984854},"api":{"x":862.6913548094922,"y":356.8609067340916},"animation":{"x":860.8881944758974,"y":456.0393612374793},"events":{"x":906.1538488309886,"y":272.31896040271914},"selectors":{"x":974.6887508878349,"y":401.1124684537999},"edges":{},"e1":{},"e2":{},"e3":{},"e4":{},"e5":{},"e6":{},"e7":{},"e8":{},"e9":{},"e10":{},"e11":{}}
 	};
 	
 	var style = {
@@ -13,7 +15,7 @@ $(function(){
 				labelFontSize: 12,
 				labelFillColor: "#fff",
 				labelOutlineColor: "#555",
-				labelOutlineWidth: 3,
+				labelOutlineWidth: 2,
 				labelValign: "middle",
 				labelHalign: "middle",
 				labelText: {
@@ -28,7 +30,7 @@ $(function(){
 			},
 			
 			"node:selected": {
-				borderWidth: 3,
+				borderWidth: 2,
 				borderColor: "yellow"
 			},
 			
@@ -64,23 +66,24 @@ $(function(){
 				sourceArrowColor: "#b4f093",
 				targetArrowColor: "#b4f093"
 			},
+			
+			".semi": {
+				opacity: 0.5
+			}
 		}
-	};
-	
-	var sizeMapper = {
-		defaultValue: 30,
-		customMapper: function( ele ){ return this.data("name").length * 5 + 10; }
 	};
 	
 	var ex1Style = $.extend(true, {}, style, {
 		selectors: {
-			"node": { height: sizeMapper, width: sizeMapper },
-			"node.category": { height: sizeMapper, width: sizeMapper, shape: "rectangle" },
+			"node": { shape: "triangle", height: 20, width: 20, labelValign: "top", labelHalign: "middle", labelOutlineWidth: 0, labelFillColor: "#000", labelFontWeight: "normal" },
+			"node.category": { shape: "square", height: 65, width: 65, shape: "rectangle" },
 			"edge": { sourceArrowShape: "circle", targetArrowShape: "triangle" }
 		}
 	});
 	
 	$("#cy").cy({
+		
+		layout: presetLayout,
 		
 		elements: {
 			nodes: [
@@ -108,7 +111,7 @@ $(function(){
 			        },
 			        
 			        {
-			        	data: { id: "arbor", name: "Arbor", tooltip: "Try out the force-directed arbor layout." },
+			        	data: { id: "arbor", name: "Arbor", tooltip: "Try out the force-directed arbor layout.", options: { maxSimulationTime: 10000 } },
 			        	classes: "layout"
 			        },
 			        
@@ -139,12 +142,41 @@ $(function(){
 			        //////////////////////////////////////////////
 			        
 			        {
-			        	data: { id: "api", name: "Super easy API", tooltip: "Borrowing concepts and conventions from jQuery, Cytoscape Web is easy to use yet powerful." },
+			        	data: { id: "api", name: "Great API", tooltip: "Borrowing concepts and conventions from jQuery, Cytoscape Web is easy to use yet powerful." },
 			        	classes: "api category"
 			        },
 			        
 			        {
-			        	data: { id: "animation", name: "Animation example", code: 'this.animate({ bypass: { color: "red" } });' },
+			        	data: { id: "animation", name: "Animation example",
+code: function(){
+this.animate({ bypass: {
+  height: 100,
+  width: 100
+} });
+}
+			        	},
+			        	classes: "api"
+			        },
+			        
+			        {
+			        	data: { id: "events", name: "Events example", immediate: true,
+code: function(){
+this.one("drag", function(){
+  this.data("name", "Dragged");
+});
+}
+			        	},
+			        	classes: "api"
+			        },
+			        
+			        {
+			        	data: { id: "selectors", name: "Selectors example",
+code: function(){
+this.neighborhood()
+  .neighborhood()
+  .toggleClass("semi");
+}
+			        	},
 			        	classes: "api"
 			        }
 			        
@@ -152,6 +184,7 @@ $(function(){
 			edges: [
 			       { data: { source: "cy", target: "layouts" } },
 			       { data: { source: "cy", target: "styles" } },
+			       { data: { source: "cy", target: "api" } },
 			       
 			       { data: { source: "layouts", target: "grid" } },
 			       { data: { source: "layouts", target: "random" } },
@@ -159,7 +192,11 @@ $(function(){
 			       { data: { source: "layouts", target: "preset" } },
 			       
 			       { data: { source: "styles", target: "size" } },
-			       { data: { source: "styles", target: "initial" } }
+			       { data: { source: "styles", target: "initial" } },
+			       
+			       { data: { source: "api", target: "animation" } },
+			       { data: { source: "api", target: "events" } },
+			       { data: { source: "api", target: "selectors" } }
 			]
 		},
 		
@@ -167,6 +204,8 @@ $(function(){
 		
 		ready: function(){
 			window.cy = this; // just for debugging in the console
+			
+			cy.container().cytoscapewebPanzoom();
 		}
 	
 	});
