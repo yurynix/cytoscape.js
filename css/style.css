@@ -81,6 +81,10 @@ code, pre {
 	font-size: 0.8em;
 }
 
+#todo {
+	display: none;
+}
+
 @media handheld, only screen and (max-device-width: 480px) {
 	body {
 
