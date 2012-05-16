@@ -3,15 +3,19 @@
 	<head>
 		<title>Cytoscape Web</title>
 		
-		<meta name="viewport" content="width=device-width; initial-scale=1.0;"/>
+		<meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;"/>
 
-		<link rel="stylesheet" href="css/reset.css" />
-		<link rel="stylesheet" href="css/style.css" />
+		<link rel="stylesheet" type="text/css" href="css/reset.css" />
+		<link rel="stylesheet" type="text/css" href="css/style.css" />
+		<link rel="stylesheet" type="text/css" href="css/prettify.css" />
 		
 		<!-- jquery -->
 		<script type="text/javascript" src="js/live.js"></script>
 		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
 		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/modernizr/2.5.3/modernizr.min.js"></script>
+		<script type="text/javascript" src="js/jquery.cytoscapeweb.all.min.js"></script>
+		<script type="text/javascript" src="js/cy.js"></script>
+		<script type="text/javascript" src="js/prettify.js"></script>
 	</head>
 	
 	<body>
@@ -50,13 +54,28 @@
 
 			<h2>Demo</h2>
 
-			<p>The following demo simply initialises Cytoscape Web with some sample graph data.  There's a lot more that you can do with the API than shown here.</p>
+			<p>The following demo simply initialises Cytoscape Web with some sample graph data.  There is a lot more that you can do with the API than shown here.</p>
 
 			<div id="cy"></div>
 
 			<h2>Some code examples</h2>
 
-			<p></p>
+			<p>This code is used to initialise Cytoscape Web:</p>
+
+			<pre class="prettyprint lang-js">
+				// something
+			$("#cy").cytoscapeweb({
+				elements: {
+					nodes: [
+						{}
+					]
+				},
+
+				style: {
+					
+				}
+			});
+			</pre>
 		</div>
 		
 	</body>
