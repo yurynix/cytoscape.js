@@ -1,5 +1,8 @@
 $(function(){
 
+	var $cy = $("#cy");
+	var smallScreen = window.screen.width <= 320;
+
 	function seval( code ){
 		return eval( "(function(){ " + code + " })();" );
 	}
@@ -21,30 +24,45 @@ $(function(){
 					.html( script )
 					.chili();
 
-				$button.removeAttr("disabled");
-
-				$button.bind("click", function(){
-					$(window).scrollTo( $("#cy"), {
-						duration: 250,
-						onAfter: function(){
-							setTimeout(function(){
-								seval( script );
-							}, 250);
-							
+				$button
+					.removeAttr("disabled")
+					.bind("click", function(){
+						if( smallScreen ){
+							$(window).scrollTo( $cy, {
+								duration: 250,
+								onAfter: function(){
+									setTimeout(function(){
+										seval( script );
+									}, 250);
+								}
+							} );
+						} else {
+							seval( script );
 						}
-					} );
-				});
+					});
 
 				if( url.match(/init\.js/) ){
-					$("#cy").addClass("loaded");
+					$cy.addClass("loaded");
 					seval( script );
 				}
 			}
 		});
 	});
 
+
+
 	$("#fit-button").bind("click", function(){
 		cy.layout();
 	});
+
+	if( !smallScreen ){
+		$cy
+			.waypoint(function(e, direction){
+				$(this).toggleClass("sticky", direction == "down");
+			})
+			.width( $cy.width() );
+	}
+
+	
 
 });

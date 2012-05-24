@@ -41,7 +41,7 @@ h1, h2, h3 {
 	font-family: FranchiseRegular;
 	text-transform: uppercase;
 	line-height: 1;
-	text-shadow: 0 1px 1px #fff;
+	text-shadow: hsl(0,0%,100%) 1px 1px, hsl(0,0%,100%) 2px 2px;
 }
 
 h1 {
@@ -84,12 +84,14 @@ h2 {
 	background: #fff url("../images/ajax-loader.gif") center center no-repeat;
 }
 
-pre {
-	padding: 0.125em 0.25em;
+
+#cy-wrapper, #cy {
+	height: 12em;
 }
 
-#cy {
-	height: 20em;
+#cy.sticky {
+	position: fixed;
+	top: 0;
 }
 
 code, pre {
@@ -135,6 +137,6 @@ button[disabled]:active {
 
 @media handheld, only screen and (max-device-width: 480px) {
 	body {
-
+		
 	}
 }

@@ -10,12 +10,13 @@
 		
 		<!--script type="text/javascript" src="js/live.js"></script-->
 		
-		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
-		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/modernizr/2.5.3/modernizr.min.js"></script>
+		<script type="text/javascript" src="js/jquery-1.7.2.min.js"></script>
+		<script type="text/javascript" src="js/modernizr.min.js"></script>
 		<script type="text/javascript" src="js/jquery.cytoscapeweb.all.min.js"></script>
-		<script type="text/javascript" src="js/jquery.scrollTo-1.4.2-min.js"></script>
+		<script type="text/javascript" src="js/waypoints.min.js"></script>
 		<script type="text/javascript" src="js/jquery.chili.min.js"></script>
 		<script type="text/javascript" src="js/jquery.chili.recipes.js"></script>
+		<script type="text/javascript" src="js/jquery.scrollTo-1.4.2-min.js"></script>
 		<script type="text/javascript" src="js/scripts.js"></script>
 	</head>
 	
@@ -58,7 +59,10 @@
 			<p>The following demo simply initialises Cytoscape Web with some sample graph data.  There is a lot more that you can do with the API than shown here.</p>
 
 			<button id="fit-button">Reset positions & viewport</button>
-			<div id="cy"></div>
+
+			<div id="cy-wrapper">
+				<div id="cy"></div>
+			</div>
 
 			<h2>Some code examples</h2>
 
