@@ -1,1 +1,0 @@
-cy.$(".foo").toggleClass("yay");
