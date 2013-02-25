@@ -2,10 +2,10 @@ $(function(){
 
 	var nodeCount = 10;
 	var edgeCount = 12;
-	
+
 	var demoNodes = [];
 	var demoEdges = [];
-	
+
 	for (var i = 0; i < nodeCount; i++) {
 		demoNodes.push({
 			data: {
@@ -14,7 +14,7 @@ $(function(){
 			}
 		});
 	}
-	
+
 	for (var i = 0; i < nodeCount; i++) {
 		demoEdges.push({
 			data: {
@@ -24,7 +24,7 @@ $(function(){
 				weight: 30
 			}
 		});
-		
+
 		if (i % 2 == 0) {
 			demoEdges.push({
 				data: {
@@ -36,7 +36,7 @@ $(function(){
 			});
 		}
 	}
-	
+
   $('#demo').cytoscape({
     elements: { // TODO specify some elements like http://cytoscapeweb.cytoscape.org/demos/simple
       nodes: demoNodes,
@@ -51,14 +51,14 @@ $(function(){
 				"shape": "data(shape)",
 				"border-width": 3,
 				"background-color": "#DDD",
-				"border-color": "#555",
+				"border-color": "#555"
 			})
 		.selector("edge")
 			.css({
 				"width": "mapData(weight, 0, 100, 1, 4)",
 				"target-arrow-shape": "triangle",
 				"source-arrow-shape": "circle",
-				"line-color": "#444",
+				"line-color": "#444"
 			})
 		.selector(":selected")
 			.css({
@@ -108,10 +108,6 @@ $(function(){
     	}
     }
     
-    
-		
   });
-  
-  
   
 });

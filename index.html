@@ -1,4 +1,4 @@
-<!DOCTYPE>
+<!DOCTYPE html>
 <html>
 	<head>
 		<title>Cytoscape.js</title>
@@ -7,16 +7,12 @@
 		<link href="css/font-awesome.css" rel="stylesheet" />
 		<link href="css/style.css" rel="stylesheet" />
 
-		<script src="js/jquery.js"></script>
-		<script src="js/cytoscape.min.js"></script>
-		<script src="js/demo.js"></script>
-
 	</head>
 
 	<body>
 
 		<div id="navigation">
-			<div class="toc">Table of contents </div>
+			<div class="toc">Table of contents</div>
 
 			
 				<div class="section lvl1">
@@ -48,6 +44,13 @@
 					</div>
 
 					
+				
+			
+				<div class="section lvl1">
+					
+					<a href="#roadmap"><span class="icon-bookmark"></span> Roadmap</a>
+				</div>
+
 				
 			
 				<div class="section lvl1">
@@ -553,6 +556,13 @@
 				
 			
 				<div class="section lvl1">
+					
+					<a href="#architecture"><span class="icon-bookmark"></span> Architecture</a>
+				</div>
+
+				
+			
+				<div class="section lvl1">
 					<span class="expander">
 						<span class="icon-caret-down expanded-icon"></span>
 						<span class="icon-caret-right collapsed-icon"></span>
@@ -596,7 +606,7 @@
 
 		<div id="content">
 
-			<div class="title">Cytoscape.js <span class="version">2.0.0-beta1</span></div>
+			<div class="title">Cytoscape.js <span class="version">2.0.0-beta2</span></div>
 			<div class="subtitle">A JavaScript graph library for analysis and visualisation (compatible with <a href="http://nodejs.org/">Node.js</a>, <a href="http://jquery.com/">jQuery</a> 1.4+, and plain JavaScript)</div>
 			<div class="links">
 				<a href="https://github.com/cytoscape/cytoscape.js"><span class="icon-github"></span> GitHub</a> |
@@ -607,7 +617,15 @@
 				<a href="https://github.com/cytoscape/cytoscape.js/issues/new"><span class="icon-briefcase"></span> File an issue</a>
 			</div>
 
-			<div id="demo"></div>
+			
+			<div id="demo-link">
+				<a href="demo.html">
+					<img src="img/demo.png" />
+
+					<div class="description">Open a Cytoscape.js demo</div>
+				</a>
+			</div>	
+			
 
 			<div id="documentation">
 			
@@ -668,6 +686,22 @@
 				
 				
 				
+				
+			
+				<h1 id="roadmap">Roadmap <a href="#roadmap"><span class="icon-bookmark"></span></a></h1>
+
+				
+					<ul>
+<li><p><strong>Compound nodes</strong> : A compound node is one that has children nodes.  They behave much like parent divs in HTML.  Support for compound nodes is half finished.  Support is in the core, and we will add support in the canvas renderer.</p>
+</li>
+<li><p><strong>Layouts from Cytoscape Web</strong> : Several layouts from Cytoscape Web will be written for Cytoscape.js, including the hierarchical layout, the circle layout, and so on.</p>
+</li>
+<li><p><strong>Graph importers</strong> : Cytoscape.js supports graph data in JSON format.  We will not be adding support for other formats in Cytoscape.js itself, but we will be working to create a separate library that could be used on the client side or the server side (via Node.js) to convert formats like GraphML and XGMML to JSON.</p>
+</li>
+</ul>
+
+				
+
 				
 			
 				<h1 id="notation">Notation <a href="#notation"><span class="icon-bookmark"></span></a></h1>
@@ -910,6 +944,7 @@ cy.filter(&quot;node[foo = &#39;bar&#39;]&quot;); // but this does</code></pre>
 <li><code>text-halign</code> : The vertical alignment of a label; may have value <code>left</code>, <code>center</code>, or <code>right</code>.</li>
 <li><code>background-color</code> : The colour of the node&#39;s body.</li>
 <li><code>background-opacity</code> : The opacity level of the node&#39;s body.</li>
+<li><code>background-image</code> : The URL that points to the image that should be used as the node&#39;s background.</li>
 <li><code>border-color</code> : The colour of the node&#39;s border.</li>
 <li><code>border-width</code> : The size of the node&#39;s border.</li>
 <li><code>height</code> : The height of the node&#39;s body.</li>
@@ -1300,6 +1335,9 @@ $(function(){ // on jquery ready
 								
 									<h3>Details</h3>
 <p>If plain element objects are used, then <a href="#core/initialisation">the same format used at initialisation</a> must be followed.  It is important to note that the <code>group</code> attribute must be specified for plain objects, as this function can not infer whether the elements added are nodes or edges.
+
+</p>
+<p>It is important to note that the positions of newly added nodes must be defined when calling <code>cy.add()</code>.  Nodes can not be placed in the graph without a valid position &mdash; otherwise they could not be displayed.
 
 </p>
 <h3>Examples</h3>
@@ -2674,6 +2712,19 @@ cy.trigger(&#39;click&#39;, [&#39;foo&#39;, &#39;bar&#39;]);</code></pre>
         return (e.max &lt;= 0.5) || (e.mean &lt;= 0.3);
     }
 };</code></pre>
+<p>NB: You must reference the version of <code>arbor.js</code> included with Cytoscape.js in the <code>&lt;head&gt;</code> of your HTML document:
+
+</p>
+<pre><code class="lang-html">&lt;head&gt;
+    ...
+
+    &lt;script src=&quot;arbor.js&quot;&gt;&lt;/script&gt;
+
+    ...
+&lt;/head&gt;</code></pre>
+<p>Arbor does some automatic path finding because it uses web workers, and so it must be included this way.  Therefore, you can not combine <code>arbor.js</code> with your other JavaScript files &mdash; as you probably would as a part of the minification of the scripts in your webapp.
+
+</p>
 <p><em>The <code>null</code> layout puts all nodes at (0, 0):</em>
 </p>
 <pre><code class="lang-js">// The null layout has no options.</code></pre>
@@ -3612,7 +3663,7 @@ cy.$(&#39;#n2&#39;).position({
 					
 						<div class="function">
 							<div class="name" id="collection/selection/eles.select"><span class="fn-name">eles.select()</span>  <a href="#collection/selection/eles.select"><span class="icon-bookmark"></span></a></div>
-							<div class="descr" id="collection/selection/eles.select">Make the elements selected.</div>
+							<div class="descr" id="collection/selection/eles.select">Make the elements selected (NB other elements outside the collection are not affected).</div>
 
 							
 
@@ -3623,7 +3674,7 @@ cy.$(&#39;#n2&#39;).position({
 					
 						<div class="function">
 							<div class="name" id="collection/selection/eles.unselect"><span class="fn-name">eles.unselect()</span>  <a href="#collection/selection/eles.unselect"><span class="icon-bookmark"></span></a></div>
-							<div class="descr" id="collection/selection/eles.unselect">Make the elements not selected.</div>
+							<div class="descr" id="collection/selection/eles.unselect">Make the elements not selected (NB other elements outside the collection are not affected).</div>
 
 							
 
@@ -5532,6 +5583,24 @@ n1.trigger(&#39;click&#39;); // click!!</code></pre>
 				
 				
 			
+				<h1 id="architecture">Architecture <a href="#architecture"><span class="icon-bookmark"></span></a></h1>
+
+				
+					<p>Cytoscape.js uses an event-driven model with a core API.  The core has several extensions, each of which is notified of events by the core, as needed.  Extensions modify the elements in the graph and notify the core of any changes.
+
+</p>
+<p>The client application accesses Cytoscape.js solely through the <a href="#core">core</a>.  Clients do not access extensions directly, apart from the case where a client wishes to write his own custom extension.
+
+</p>
+<p>The following diagram summarises the extensions of Cytoscape.js, which are discussed in further detail <a href="#extensions">later in this documentation</a>.
+
+</p>
+<p><img src="https://raw.github.com/cytoscape/cytoscape.js/master/ref/arch.png" alt="The architecture of Cytoscape.js"></p>
+
+				
+
+				
+			
 				<h1 id="extensions">Extensions <a href="#extensions"><span class="icon-bookmark"></span></a></h1>
 
 				
@@ -5552,6 +5621,7 @@ n1.trigger(&#39;click&#39;); // click!!</code></pre>
 <p>The <code>name</code> argument indicates the name of the extension, which should be a single word in lower case.
 
 
+
 </p>
 <h2 id="extensions/functions">Functions <a href="#extensions/functions"><span class="icon-bookmark"></span></a></h2>
 <p>Functions should be chainable, unless they need to return some other value.  To make a function chainable, make sure to <code>return this;</code> at the end of your function.
@@ -5568,12 +5638,38 @@ n1.trigger(&#39;click&#39;); // click!!</code></pre>
   return this; // chainability
 });</code></pre>
 <h2 id="extensions/layouts">Layouts <a href="#extensions/layouts"><span class="icon-bookmark"></span></a></h2>
-<p>For an example layout, please refer to the <a href="https://github.com/cytoscape/cytoscape.js/blob/master/src/extensions/cytoscape.layout.null.js">null layout source code</a>.  The layout just sets each node to position (0, 0), and it is well documented.
+<p>A layout modifies the positions of nodes in the graph.  A layout has number of options, which are specific to the particular layout.
+
+</p>
+<p>Layouts may be blocking if they are fast &mdash; meaning you can execute your code to run after the layout on the line following the layout call.  Layouts may also be continuous, in which case, callback functions are provided to know when the layout finishes.
+
+</p>
+<p>A layout has two events that must be triggereed on the core, including <code>layoutready</code> and <code>layoutstop</code>:
+
+</p>
+<ul>
+<li><p><code>layoutready</code> : This is triggered on the core (via <code>cy.trigger(&#39;layoutready&#39;)</code>) when the layout has set the positions on every node at least once.  This lets the core know that the nodes now have valid positions and can be rendered.  It is important to trigger <code>layoutready</code> on continuous layouts so that the nodes are shown moving.  For blocking (non-continous) layouts, <code>layoutready</code> can just be triggered after the layout is done but before <code>layoutstop</code>.</p>
+</li>
+<li><p><code>layoutstop</code> : This is triggered on the core (via <code>cy.trigger(&#39;layoutstop&#39;)</code>) when the layout has finished.  It should be triggered after <code>layoutready</code>.  The layout should not change node positions after triggering <code>layoutstop</code>.</p>
+</li>
+</ul>
+<p>For an example layout, please refer to the <a href="https://github.com/cytoscape/cytoscape.js/blob/master/src/extensions/cytoscape.layout.null.js">null layout source code</a>.  The layout just sets each node to position (0, 0), and it is well documented.  The [Arbor layout](<a href="https://github.com/cytoscape/cytoscape.js/blob/master/src/extensions/cytoscape.layout.arbor.js">null layout source code</a>) is a good example of a continuous layout.
+
 
 
 </p>
 <h2 id="extensions/renderers">Renderers <a href="#extensions/renderers"><span class="icon-bookmark"></span></a></h2>
-<p>For an example renderer, please refer to the <a href="https://github.com/cytoscape/cytoscape.js/blob/master/src/extensions/cytoscape.renderer.canvas.js">canvas renderer</a>.  If you&#39;re interested in writing a custom renderer for Cytoscape.js, please <a href="mailto:maxkfranz@gmail.com">send an email to Max</a>.</p>
+<p>For an example renderer, please refer to the <a href="https://github.com/cytoscape/cytoscape.js/blob/master/src/extensions/cytoscape.renderer.canvas.js">canvas renderer</a>.
+
+</p>
+<p>The API of the renderer follows the actor model, and so it has a single main entry point, the <code>notify()</code> function.  The core uses the <code>notify()</code> function to send event objects to the renderer.  The format of the event object is as follows:
+
+</p>
+<ul>
+<li><code>event.type</code> : A string containing the name of the event that has occured.</li>
+<li><code>event.collection</code> : A collection of elements associated with the event.</li>
+</ul>
+<p>If you&#39;re interested in writing a custom renderer for Cytoscape.js, please <a href="mailto:maxkfranz@gmail.com">send an email to Max</a> for more help if needed.</p>
 
 				
 
