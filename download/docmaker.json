@@ -64,6 +64,17 @@
             },
 
             {
+              "name": "cy.batchData",
+              "descr": "Update several data fields for several elements all at once (in batch).",
+              "formats": [
+                { "args": [
+                  { "name": "map", "descr": "Element IDs mapped to data to set." }
+                ] }
+              ],
+              "md": "core/batchData"
+            },
+
+            {
               "name": "cy.collection",
               "descr": "Return a new, empty collection.",
               "md": "core/collection"
@@ -142,7 +153,10 @@
               "descr": "Pan and zooms the graph to fit to a collection.",
               "formats": [
                 { "descr": "Fit to all elements in the graph." },
-                { "descr": "Fit to the specified elements.", "args": [ { "name": "eles", "descr": "The collection to fit to." } ] }
+                {
+                  "descr": "Fit to the specified elements.", 
+                  "args": [ { "name": "eles", "descr": "The collection to fit to.", "optional": true }, { "name": "padding", "descr": "An amount of padding (in pixels) to have around the graph", "optional": true } ] 
+                }
               ],
               "md": "core/center"
             },
@@ -262,6 +276,23 @@
                   "descr": "Set the maximum zoom level.",
                   "args": [
                     { "name": "zoom", "descr": "The new maximum zoom level to use." }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "cy.boxSelectionEnabled",
+              "descr": "Get or set whether box selection is enabled.",
+              "formats": [
+                {
+                  "descr": "Get whether box selection is enabled."
+                },
+
+                {
+                  "descr": "Set whether box selection is enabled.",
+                  "args": [
+                    { "name": "bool", "descr": "A truthy value enables box selection; a falsey value disables it." }
                   ]
                 }
               ]
