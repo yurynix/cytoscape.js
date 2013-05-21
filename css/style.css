@@ -90,7 +90,6 @@ body {
 
 
 #demo, #demo-source {
-	height: 20em;
 	border: 1px solid #ddd;
 	margin: 1em 0;
 	overflow: hidden !important;
@@ -99,12 +98,18 @@ body {
 }
 
 #demo {
+	height: 20em;
+	width: 20em;
 	float: left;
-	width: 30em;
 }
 
 #demo-source {
-	margin-top: 1.2em;
+	height: 20em;
+}
+
+#demo-source + * {
+	clear: both;
+	padding-top: 1em;
 }
 
 #demo-code {
@@ -225,7 +230,7 @@ pre {
 	font-family: Consolas, monospace;
 	border: 1px solid #ddd;
 	border-radius: 0.25em;
-	font-size: 0.76em;
+	font-size: 1em;
 	background: #fafafa;
 }
 
@@ -237,7 +242,7 @@ pre {
 pre code {
 	background: transparent;
 	border: 0;
-	font-size: 1em;
+	font-size: 0.8em;
 }
 
 .function .formats ul {
@@ -245,13 +250,13 @@ pre code {
 }
 
 .function pre {
-	font-size: 0.8em;
+	
 }
 
 .function {
-	border-top: 1px solid #eaeaea;
+	border-top: 1px dashed #bbb;
 	padding: 1em 0;
-	border-bottom: 1px solid #eaeaea;
+	border-bottom: 1px dashed #bbb;
 }
 
 .function + .function {
