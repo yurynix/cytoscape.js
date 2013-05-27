@@ -5,22 +5,22 @@ A selector functions similar to a [jQuery selector](http://api.jquery.com/catego
 The selectors can be combined together to make powerful queries in Cytoscape.js, for example:
 
 ```js
-// get all selected nodes with weight greater than or equal to 30
-cy.elements("node[weight >= 30]:selected"); 
+// get all nodes with weight greater than or equal to 30
+cy.elements("node[weight >= 50][height < 180]"); 
 ```
 
 Selectors can be joined together (effectively creating a logical OR) with commas:
 
 ```js
-// get both locked nodes AND selected edges 
-cy.elements("node:locked, edge:selected");
+// get node j and the edges coming out from it
+cy.elements("node#j, edge[source = 'j']");
 ```
 
 It is important to note that strings need to be enclosed by quotation marks:
 
 ```js
-cy.filter("node[foo = bar]");   // this doesn't work
-cy.filter("node[foo = 'bar']"); // but this does
+//cy.filter("node[name = Jerry]"); // this doesn't work
+cy.filter("node[name = 'Jerry']"); // but this does
 ``` 
 
 
