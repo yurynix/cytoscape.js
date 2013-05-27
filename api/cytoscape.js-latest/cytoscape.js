@@ -2,7 +2,7 @@
 /* cytoscape.js */
 
 /**
- * This file is part of cytoscape.js 2.0.0.
+ * This file is part of cytoscape.js 2.0.1.
  * 
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -1235,34 +1235,76 @@ var cytoscape;
 			domElement = instance;
 		}
 
-		var time = +new Date;
-		var suffix;
+		// if we have an old reg that is empty (no cy), then 
+		var oldReg = $$.getRegistrationForInstance(instance, domElement);
+		if( oldReg ){
+			if( !oldReg.cy ){
+				oldReg.cy = instance;
+				oldReg.domElement = domElement;
+			} else {
+				$$.util.error('Tried to register on a pre-existing registration');
+			}
 
-		// add a suffix in case instances collide on the same time
-		if( !$$.lastInstanceTime || $$.lastInstanceTime === time ){
-			$$.instanceCounter = 0;
+			return oldReg;
+
+		// otherwise, just make a new registration
 		} else {
-			++$$.instanceCounter;
+			var time = +new Date;
+			var suffix;
+
+			// add a suffix in case instances collide on the same time
+			if( !$$.lastInstanceTime || $$.lastInstanceTime === time ){
+				$$.instanceCounter = 0;
+			} else {
+				++$$.instanceCounter;
+			}
+			$$.lastInstanceTime = time;
+			suffix = $$.instanceCounter;
+
+			var id = "cy-" + time + "-" + suffix;
+
+			// create the registration object
+			var registration = {
+				id: id,
+				cy: cy,
+				domElement: domElement,
+				readies: [] // list of bound ready functions before calling init
+			};
+
+			// put the registration object in the pool
+			$$.instances.push( registration );
+			$$.instances[ id ] = registration;
+
+			return registration;
 		}
-		$$.lastInstanceTime = time;
-		suffix = $$.instanceCounter;
-
-		var id = "cy-" + time + "-" + suffix;
-
-		// create the registration object
-		var registration = {
-			id: id,
-			cy: cy,
-			domElement: domElement,
-			readies: [] // list of bound ready functions before calling init
-		};
-
-		// put the registration object in the pool
-		$$.instances.push( registration );
-		$$.instances[ id ] = registration;
-
-		return registration;
 	};
+
+	$$.removeRegistrationForInstance = function(instance, domElement){
+		var cy;
+
+		if( $$.is.core(instance) ){
+			cy = instance;
+		} else if( $$.is.domElement(instance) ){
+			domElement = instance;
+		}
+
+		if( $$.is.core(cy) ){
+			var id = cy._private.instanceId;
+			delete $$.instances[ id ];
+			$$.instances.splice(id, 1);
+
+		} else if( $$.is.domElement(domElement) ){
+			for( var i = 0; i < $$.instances.length; i++ ){
+				var reg = $$.instances[i];
+
+				if( reg.domElement === domElement ){
+					delete $$.instances[ reg.id ];
+					$$.instances.splice(i, 1);
+					i--;
+				}
+			}
+		}
+	}
 
 	$$.getRegistrationForInstance = function( instance, domElement ){
 		var cy;
@@ -1276,7 +1318,7 @@ var cytoscape;
 		}
 
 		if( $$.is.core(cy) ){
-			var id = cy.instanceId();
+			var id = cy._private.instanceId;
 			return $$.instances[ id ];
 
 		} else if( $$.is.domElement(domElement) ){
@@ -2335,6 +2377,7 @@ var cytoscape;
 			{ name: "font-variant", type: t.fontVariant },
 			{ name: "font-weight", type: t.fontWeight },
 			{ name: "font-size", type: t.size },
+			{ name: "min-zoomed-font-size", type: t.size },
 			{ name: "visibility", type: t.visibility },
 			{ name: "opacity", type: t.zeroOneNumber },
 			{ name: "z-index", type: t.nonNegativeInt },
@@ -2415,7 +2458,7 @@ var cytoscape;
 					"text-halign": "center",
 					"color": color,
 					"content": undefined, // => no label
-					"text-outline-color": "transparent",
+					"text-outline-color": "#000",
 					"text-outline-width": 0,
 					"text-outline-opacity": 1,
 					"text-opacity": 1,
@@ -2426,16 +2469,16 @@ var cytoscape;
 					"font-variant": fontVariant,
 					"font-weight": fontWeight,
 					"font-size": fontSize,
+					"min-zoomed-font-size": 0,
 					"visibility": "visible",
 					"opacity": 1,
 					"z-index": 0,
 					"content": "",
 					"overlay-opacity": 0,
 					"overlay-color": "#000",
-					"overlay-padding": 10
-				})
-			.selector("node") // just node properties
-				.css({
+					"overlay-padding": 10,
+
+					// node props
 					"background-color": "#888",
 					"background-opacity": 1,
 					"background-image": "none",
@@ -2449,25 +2492,32 @@ var cytoscape;
 					"padding-bottom": 0,
 					"padding-left": 0,
 					"padding-right": 0,
-					"shape": "ellipse"
-				})
-			.selector("$node > node") // compound (parent) node properties
-				.css({
-					"width": "auto",
-					"height": "auto",
-					"shape": "rectangle"
-				})
-			.selector("edge") // just edge properties
-				.css({
+					"shape": "ellipse",
+
+					// edge props
 					"source-arrow-shape": "none",
 					"target-arrow-shape": "none",
 					"source-arrow-color": "#bbb",
 					"target-arrow-color": "#bbb",
 					"line-style": "solid",
 					"line-color": "#bbb",
-					"width": 1,
 					"control-point-step-size": 40,
 					"curve-style": "bezier"
+				})
+			.selector("$node > node") // compound (parent) node properties
+				.css({
+					"width": "auto",
+					"height": "auto",
+					"shape": "rectangle",
+					"background-opacity": 0.5,
+					"padding-top": 10,
+					"padding-right": 10,
+					"padding-left": 10,
+					"padding-bottom": 10
+				})
+			.selector("edge") // just edge properties
+				.css({
+					"width": 1,
 				})
 			.selector(":active")
 				.css({
@@ -3284,9 +3334,16 @@ var cytoscape;
 ;(function($$){
 
 	var defaults = {
-		showOverlay: true
+		showOverlay: true,
+		hideEdgesOnViewport: false
 	};
 	
+	var origDefaults = $$.util.copy( defaults );
+
+	$$.defaults = function( opts ){
+		defaults = $$.util.extend({}, origDefaults, opts);
+	};
+
 	$$.fn.core = function( fnMap, options ){
 		for( var name in fnMap ){
 			var fn = fnMap[name];
@@ -3304,12 +3361,14 @@ var cytoscape;
 
 		var container = opts.container;
 		var reg = $$.getRegistrationForInstance(cy, container);
-		if( reg ){ // already registered => just update ref
-			reg.cy = this;
-			reg.domElement = container;
-		} else { // then we have to register
-			reg = $$.registerInstance( cy, container );
-		}
+		if( reg && reg.cy ){ 
+			reg.domElement.innerHTML = '';
+			reg.cy.notify({ type: 'destroy' }); // destroy the renderer
+
+			$$.removeRegistrationForInstance(reg.cy, reg.domElement);
+		} 
+
+		reg = $$.registerInstance( cy, container );
 		var readies = reg.readies;
 
 		var options = opts;
@@ -3325,7 +3384,7 @@ var cytoscape;
 		
 		this._private = {
 			ready: false, // whether ready has been triggered
-			instanceId: null, // the registered instance id
+			instanceId: reg.id, // the registered instance id
 			options: options, // cached options
 			elements: [], // array of elements
 			id2index: {}, // element id => index in elements array
@@ -3362,7 +3421,8 @@ var cytoscape;
 		this._private.style = $$.is.stylesheet(options.style) ? options.style.generateStyle(this) : new $$.Style( cy );
 
 		cy.initRenderer( $$.util.extend({
-			showOverlay: options.showOverlay
+			showOverlay: options.showOverlay,
+			hideEdgesOnViewport: options.hideEdgesOnViewport
 		}, options.renderer) );
 
 		// initial load
@@ -3567,7 +3627,7 @@ var cytoscape;
 		},
 		
 		remove: function(collection){
-			if( !$$.is.elementOrCollection(collection) ){
+			if( $$.is.elementOrCollection(collection) ){
 				collection = collection;
 			} else if( $$.is.string(collection) ){
 				var selector = collection;
@@ -3792,6 +3852,12 @@ var cytoscape;
 				} else {
 					percent = Math.min(1, (now - startTime)/animation.duration);
 				}
+
+				if( percent < 0 ){
+					percent = 0;
+				} else if( percent > 1 ){
+					percent = 1;
+				}
 				
 				if( properties.delay == null ){ // then update the position
 					var startPos = animation.startPosition;
@@ -3849,8 +3915,14 @@ var cytoscape;
 			}
 			
 			function ease(start, end, percent){
+				if( percent < 0 ){
+					percent = 0;
+				} else if( percent > 1 ){
+					percent = 1;
+				}
+
 				if( $$.is.number(start) && $$.is.number(end) ){
-					return start + (end - start) * percent;
+					return start + Math.abs(end - start) * percent;
 
 				} else if( $$.is.number(start[0]) && $$.is.number(end[0]) ){ // then assume a colour
 					var c1 = start;
@@ -3866,7 +3938,7 @@ var cytoscape;
 					var g = ch( c1[1], c2[1] );
 					var b = ch( c1[2], c2[2] );
 					
-					return $$.util.tuple2hex( [r, g, b] );
+					return 'rgb(' + r + ', ' + g + ', ' + b + ')';
 				}
 				
 				return undefined;
@@ -4324,7 +4396,14 @@ var cytoscape;
 				return this;
 			}
 
-			var bb = this.boundingBox( elements );
+			if( $$.is.string(elements) ){
+				var sel = elements;
+				elements = this.$( sel );
+			} else if( !$$.is.elementOrCollection(elements) ){
+				elements = this.elements();
+			}
+
+			var bb = elements.boundingBox();
 			var style = this.style();
 
 			var w = parseFloat( style.containerCss("width") );
@@ -4455,7 +4534,14 @@ var cytoscape;
 				return this;
 			}
 
-			var bb = this.boundingBox( elements );
+			if( $$.is.string(elements) ){
+				var selector = elements;
+				elements = cy.elements( selector );
+			} else if( !$$.is.elementOrCollection(elements) ){
+				elements = cy.elements();
+			}
+
+			var bb = elements.boundingBox();
 			var style = this.style();
 			var w = parseFloat( style.containerCss("width") );
 			var h = parseFloat( style.containerCss("height") );
@@ -7366,7 +7452,7 @@ var cytoscape;
 					regex: subject,
 					populate: function(){
 						if( currentSubject != null && this.subject != this ){
-							$$.util.error("Redefinition of subject in selector `%s`", selector);
+							$$.util.error("Redefinition of subject in selector `" + selector + "`");
 							return false;
 						}
 
@@ -7441,7 +7527,7 @@ var cytoscape;
 				var check = consumeExpr();
 				
 				if( check.expr == null ){
-					$$.util.error("The selector `%s` is invalid", selector);
+					$$.util.error("The selector `"+ selector +"`is invalid");
 					return;
 				} else {
 					var args = [];
@@ -7489,7 +7575,7 @@ var cytoscape;
 
 							query = ancestor; // go up the tree
 						} else {
-							$.error("When adjusting references for the selector `%s`, neither parent nor ancestor was found");
+							$$.util.error("When adjusting references for the selector `"+ query +"`, neither parent nor ancestor was found");
 							break;
 						}
 					} // for
@@ -7502,7 +7588,7 @@ var cytoscape;
 			if( onlyThisGroup != null ){
 				for(var j = 0; j < self.length; j++){
 					if( self[j].group != null && self[j].group != onlyThisGroup ){
-						$.error("Group `%s` conflicts with implicit group `%s` in selector `%s`", self[j].group, onlyThisGroup, selector);
+						$$.util.error("Group `"+ self[j].group +"` conflicts with implicit group `"+ onlyThisGroup +"` in selector `"+ selector +"`");
 						return;
 					}
 
@@ -7511,7 +7597,7 @@ var cytoscape;
 			}
 			
 		} else {
-			$.error("A selector must be created from a string; found %o", selector);
+			$$.util.error("A selector must be created from a string; found " + selector);
 			return;
 		}
 
@@ -7993,6 +8079,8 @@ var cytoscape;
 		//--
 		
 		this.redraws = 0;
+
+		this.bindings = [];
 		
 		this.init();
 		
@@ -8048,41 +8136,19 @@ var cytoscape;
 			link.href = 'http://cytoscape.github.io/cytoscape.js/';
 			link.target = '_blank';
 
-			var dragged = false;
-			var touched = false;
-
-			link.addEventListener('touchstart', function(){
-				dragged = false;
-				touched = true;
-			});
-
-			window.addEventListener('touchmove', function(){
-				dragged = true;
-			});
-
-			window.addEventListener('click', function(e){
-				var retFalse = false;
-
-				if( touched && dragged ){
-					e.preventDefault();
-					retFalse = true;
-				}
-
-				dragged = false;
-				touched = false;
-
-				if( retFalse ){
-					return false;
-				}
-			}, true);
-
 		}
+
+		this.hideEdgesOnViewport = options.hideEdgesOnViewport;
 
 		this.load();
 	}
 
 	CanvasRenderer.prototype.notify = function(params) {
-		if (params.type == "add"
+		if ( params.type == "destroy" ){
+			this.destroy();
+			return;
+
+		} else if (params.type == "add"
 			|| params.type == "remove"
 			|| params.type == "load"
 		) {
@@ -8101,6 +8167,28 @@ var cytoscape;
 
 		this.redraws++;
 		this.redraw();
+	};
+
+	CanvasRenderer.prototype.registerBinding = function(target, event, handler, useCapture){
+		this.bindings.push({
+			target: target,
+			event: event,
+			handler: handler,
+			useCapture: useCapture
+		});
+
+		target.addEventListener(event, handler, useCapture);
+	};
+
+	CanvasRenderer.prototype.destroy = function(){
+		this.destroyed = true;
+
+		for( var i = 0; i < this.bindings.length; i++ ){
+			var binding = this.bindings[i];
+			var b = binding;
+
+			b.target.removeEventListener(b.event, b.handler, b.useCapture);
+		}
 	};
 	
 	
@@ -8254,7 +8342,7 @@ var cytoscape;
 		}
 
 		// auto resize
-		window.addEventListener("resize", function(e) { 
+		r.registerBinding(window, "resize", function(e) { 
 			r.data.canvasNeedsRedraw[NODE] = true;
 			r.data.canvasNeedsRedraw[OVERLAY] = true;
 			r.matchCanvasSize( r.data.container );
@@ -8262,12 +8350,12 @@ var cytoscape;
 		}, true);
 
 		// stop right click menu from appearing on cy
-		r.data.container.addEventListener("contextmenu", function(e){
+		r.registerBinding(r.data.container, "contextmenu", function(e){
 			e.preventDefault();
 		});
 
 		// Primary key
-		r.data.container.addEventListener("mousedown", function(e) { 
+		r.registerBinding(r.data.container, "mousedown", function(e) { 
 			e.preventDefault();
 			r.hoverData.capture = true;
 			r.hoverData.which = e.which;
@@ -8410,7 +8498,7 @@ var cytoscape;
 			
 		}, false);
 		
-		window.addEventListener("mousemove", function(e) {
+		r.registerBinding(window, "mousemove", function(e) {
 			var preventDefault = false;
 			var capture = r.hoverData.capture;
 
@@ -8563,7 +8651,7 @@ var cytoscape;
     		}
 		}, false);
 		
-		window.addEventListener("mouseup", function(e) {
+		r.registerBinding(window, "mouseup", function(e) {
 			// console.log('--\nmouseup', e)
 
 			var capture = r.hoverData.capture; if (!capture) { return; }; r.hoverData.capture = false;
@@ -8799,37 +8887,45 @@ var cytoscape;
 				if( cy.panningEnabled() && cy.zoomingEnabled() ){
 					cy.zoom({level: cy.zoom() * Math.pow(10, diff), position: {x: unpos[0], y: unpos[1]}});
 				}
+
+				r.data.wheel = true;
+				clearTimeout(r.data.wheelTimeout);
+				r.data.wheelTimeout = setTimeout(function(){
+					r.data.wheel = false;
+					r.data.canvasNeedsRedraw[NODE] = true;
+					r.redraw();
+				}, 100);
 			}
 
 		}
 		
 		// Functions to help with whether mouse wheel should trigger zooming
 		// --
-		r.data.container.addEventListener("mousewheel", wheelHandler, true);
-		r.data.container.addEventListener("DOMMouseScroll", wheelHandler, true);
-		r.data.container.addEventListener("MozMousePixelScroll", function(e){
+		r.registerBinding(r.data.container, "mousewheel", wheelHandler, true);
+		r.registerBinding(r.data.container, "DOMMouseScroll", wheelHandler, true);
+		r.registerBinding(r.data.container, "MozMousePixelScroll", function(e){
 			if (r.zoomData.freeToZoom) {
 				e.preventDefault();
 			}
 		}, false);
 		
-		r.data.container.addEventListener("mousemove", function(e) { 
+		r.registerBinding(r.data.container, "mousemove", function(e) { 
 			if (r.zoomData.lastPointerX && r.zoomData.lastPointerX != e.pageX && !r.zoomData.freeToZoom) 
 				{ r.zoomData.freeToZoom = true; } r.zoomData.lastPointerX = e.pageX; 
 		}, false);
 		
-		r.data.container.addEventListener("mouseout", function(e) { 
+		r.registerBinding(r.data.container, "mouseout", function(e) { 
 			r.zoomData.freeToZoom = false; r.zoomData.lastPointerX = null 
 		}, false);
 		// --
 		
 		// Functions to help with handling mouseout/mouseover on the Cytoscape container
 					// Handle mouseout on Cytoscape container
-		r.data.container.addEventListener("mouseout", function(e) { 
+		r.registerBinding(r.data.container, "mouseout", function(e) { 
 			r.data.cy.trigger(new $$.Event(e, {type: "mouseout"}));
 		}, false);
 		
-		r.data.container.addEventListener("mouseover", function(e) { 
+		r.registerBinding(r.data.container, "mouseover", function(e) { 
 			r.data.cy.trigger(new $$.Event(e, {type: "mouseover"}));
 		}, false);
 		
@@ -8844,7 +8940,7 @@ var cytoscape;
 			return Math.sqrt( (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1) );
 		}
 
-		r.data.container.addEventListener("touchstart", function(e) {
+		r.registerBinding(r.data.container, "touchstart", function(e) {
 
 			if( e.target !== r.data.link ){
 				e.preventDefault();
@@ -9072,7 +9168,7 @@ var cytoscape;
 		
 // console.log = function(m){ $('#console').append('<div>'+m+'</div>'); };
 
-		window.addEventListener("touchmove", function(e) {
+		r.registerBinding(window, "touchmove", function(e) {
 		
 			var select = r.data.select;
 			var capture = r.touchData.capture; //if (!capture) { return; }; 
@@ -9313,6 +9409,7 @@ var cytoscape;
 					}
 
 					cy.panBy({x: disp[0] * cy.zoom(), y: disp[1] * cy.zoom()});
+					r.swipePanning = true;
 					
 					// Re-project
 					var pos = r.projectIntoViewport(e.touches[0].pageX, e.touches[0].pageY);
@@ -9325,11 +9422,13 @@ var cytoscape;
 			
 		}, false);
 		
-		window.addEventListener("touchend", function(e) {
+		r.registerBinding(window, "touchend", function(e) {
 			
 			var capture = r.touchData.capture; if (!capture) { return; }; r.touchData.capture = false;
 			e.preventDefault();
 			var select = r.data.select;
+
+			r.swipePanning = false;
 			
 			var cy = r.data.cy; 
 			var nodes = r.getCachedNodes(); var edges = r.getCachedEdges();
@@ -10452,6 +10551,10 @@ var cytoscape;
 			this.lastDrawTime = nowTime;
 		}
 
+
+		// start on thread ready
+		setTimeout(function(){
+
 		var startTime = nowTime;
 
 		var looperMax = 100;
@@ -10459,9 +10562,9 @@ var cytoscape;
 
 		// console.time('init'); for( var looper = 0; looper <= looperMax; looper++ ){
 		
-		var cy = this.data.cy; var data = this.data; 
-		var nodes = this.getCachedNodes(); var edges = this.getCachedEdges();
-		this.matchCanvasSize(data.container);
+		var cy = r.data.cy; var data = r.data; 
+		var nodes = r.getCachedNodes(); var edges = r.getCachedEdges();
+		r.matchCanvasSize(data.container);
 		
 		var elements = [];
 		for( var i = 0; i < nodes.length; i++ ){
@@ -10479,21 +10582,24 @@ var cytoscape;
 			//NB : VERY EXPENSIVE
 			//console.time('edgectlpts'); for( var looper = 0; looper <= looperMax; looper++ ){
 
-			this.findEdgeControlPoints(edges);
+			if( r.hideEdgesOnViewport && (r.pinching || r.hoverData.dragging || r.data.wheel || r.swipePanning) ){ 
+			} else {
+				r.findEdgeControlPoints(edges);
+			}
 
 			//} console.timeEnd('edgectlpts')
 
 		
 
 			// console.time('sort'); for( var looper = 0; looper <= looperMax; looper++ ){
-			var elements = this.getCachedZSortedEles();
+			var elements = r.getCachedZSortedEles();
 			// } console.timeEnd('sort')
 
 			// console.time('updatecompounds'); for( var looper = 0; looper <= looperMax; looper++ ){
 			// no need to update graph if there is no compound node
 			if ( cy.hasCompoundNodes() )
 			{
-				this.updateAllCompounds(elements);
+				r.updateAllCompounds(elements);
 			}
 			// } console.timeEnd('updatecompounds')
 		}
@@ -10536,10 +10642,10 @@ var cytoscape;
 				element = elesNotInDragLayer[index];
 				
 				if (element._private.group == "nodes") {
-					this.drawNode(context, element);
+					r.drawNode(context, element);
 					
 				} else if (element._private.group == "edges") {
-					this.drawEdge(context, element);
+					r.drawEdge(context, element);
 				}
 			}
 			
@@ -10547,16 +10653,16 @@ var cytoscape;
 				element = elesNotInDragLayer[index];
 				
 				if (element._private.group == "nodes") {
-					this.drawNodeText(context, element);
+					r.drawNodeText(context, element);
 				} else if (element._private.group == "edges") {
-					this.drawEdgeText(context, element);
+					r.drawEdgeText(context, element);
 				}
 
 				// draw the overlay
 				if (element._private.group == "nodes") {
-					this.drawNode(context, element, true);
+					r.drawNode(context, element, true);
 				} else if (element._private.group == "edges") {
-					this.drawEdge(context, element, true);
+					r.drawEdge(context, element, true);
 				}
 			}
 			
@@ -10599,9 +10705,9 @@ var cytoscape;
 				element = elesInDragLayer[index];
 				
 				if (element._private.group == "nodes") {
-					this.drawNode(context, element);
+					r.drawNode(context, element);
 				} else if (element._private.group == "edges") {
-					this.drawEdge(context, element);
+					r.drawEdge(context, element);
 				}
 			}
 			
@@ -10609,16 +10715,16 @@ var cytoscape;
 				element = elesInDragLayer[index];
 				
 				if (element._private.group == "nodes") {
-					this.drawNodeText(context, element);
+					r.drawNodeText(context, element);
 				} else if (element._private.group == "edges") {
-					this.drawEdgeText(context, element);
+					r.drawEdgeText(context, element);
 				}
 
 				// draw the overlay
 				if (element._private.group == "nodes") {
-					this.drawNode(context, element, true);
+					r.drawNode(context, element, true);
 				} else if (element._private.group == "edges") {
-					this.drawEdge(context, element, true);
+					r.drawEdge(context, element, true);
 				}
 			}
 			
@@ -10694,7 +10800,7 @@ var cytoscape;
 			}
 		}
 
-		if( this.options.showOverlay ){
+		if( r.options.showOverlay ){
 			var context = data.canvases[OVERLAY].getContext("2d");
 
 			context.lineJoin = 'round';
@@ -10723,13 +10829,17 @@ var cytoscape;
 
 		var endTime = +new Date;
 
-		if( this.averageRedrawTime === undefined ){
-			this.averageRedrawTime = endTime - startTime;
+		if( r.averageRedrawTime === undefined ){
+			r.averageRedrawTime = endTime - startTime;
 		}
 
 		// use a weighted average with a bias from the previous average so we don't spike so easily
-		this.averageRedrawTime = this.averageRedrawTime/2 + (endTime - startTime)/2;
+		r.averageRedrawTime = r.averageRedrawTime/2 + (endTime - startTime)/2;
 		//console.log('actual: %i, average: %i', endTime - startTime, this.averageRedrawTime);
+
+
+		// end on thread ready
+		}, 0);
 	};
 	
 	var imageCache = {};
@@ -10825,7 +10935,7 @@ var cytoscape;
 	// Draw edge
 	CanvasRenderer.prototype.drawEdge = function(context, edge, drawOverlayInstead) {
 
-		//if( this.pinching ){ return; } // save cycles on pinching
+		if( this.hideEdgesOnViewport && (this.dragData.didDrag || this.pinching || this.hoverData.dragging || this.data.wheel || this.swipePanning) ){ return; } // save cycles on pinching
 
 		var startNode, endNode;
 
@@ -11250,7 +11360,16 @@ var cytoscape;
 	// Draw edge text
 	CanvasRenderer.prototype.drawEdgeText = function(context, edge) {
 	
+		if( this.hideEdgesOnViewport && (this.dragData.didDrag || this.pinching || this.hoverData.dragging || this.data.wheel || this.swipePanning) ){ return; } // save cycles on pinching
+	
 		if (edge._private.style["visibility"].value != "visible") {
+			return;
+		}
+
+		var computedSize = edge._private.style["font-size"].pxValue * edge.cy().zoom();
+		var minSize = edge._private.style["min-zoomed-font-size"].pxValue;
+
+		if( computedSize < minSize ){
 			return;
 		}
 	
@@ -11460,6 +11579,13 @@ var cytoscape;
 	CanvasRenderer.prototype.drawNodeText = function(context, node) {
 		
 		if (node._private.style["visibility"].value != "visible") {
+			return;
+		}
+
+		var computedSize = node._private.style["font-size"].pxValue * node.cy().zoom();
+		var minSize = node._private.style["min-zoomed-font-size"].pxValue;
+
+		if( computedSize < minSize ){
 			return;
 		}
 	
@@ -12836,7 +12962,7 @@ var cytoscape;
 			context.translate(centerX, centerY);
 			context.scale(width / 2, height / 2);
 			// At origin, radius 1, 0 to 2pi
-			context.arc(0, 0, 1, 0, Math.PI * 2, false);
+			context.arc(0, 0, 1, 0, Math.PI * 2 * 0.999, false); // *0.999 b/c chrome rendering bug on full circle
 			context.closePath();
 
 			context.scale(2/width, 2/height);
@@ -14423,7 +14549,8 @@ var cytoscape;
 		stop: undefined, // callback on layoutstop
 		positions: undefined, // map of (node id) => (position obj)
 		zoom: undefined, // the zoom level to set (prob want fit = false if set)
-		pan: undefined // the pan level to set (prob want fit = false if set)
+		pan: undefined, // the pan level to set (prob want fit = false if set)
+		padding: 30 // padding on fit
 	};
 	
 	function PresetLayout( options ){
@@ -14471,7 +14598,7 @@ var cytoscape;
 		cy.trigger("layoutready");
 		
 		if( options.fit ){
-			cy.fit();
+			cy.fit( options.padding );
 		}
 		
 		cy.one("layoutstop", options.stop);
@@ -15115,6 +15242,10 @@ var cytoscape;
             if( options.circle ){
                 var radius = radiusStepSize * depth + radiusStepSize - (depths.length > 0 && depths[0].length <= 3 ? radiusStepSize/2 : 0);
                 var theta = 2 * Math.PI / depths[depth].length * index;
+
+                if( depth === 0 && depths[0].length === 1 ){
+                    radius = 1;
+                }
 
                 return {
                     x: center.x + radius * Math.cos(theta),
