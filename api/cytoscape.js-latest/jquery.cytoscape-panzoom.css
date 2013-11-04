@@ -2,7 +2,7 @@
 /* jquery.cytoscape-panzoom.css */
 
 /**
- * This file is part of cytoscape.js 2.0.2.
+ * This file is part of cytoscape.js 2.0.3.
  * 
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -43,7 +43,6 @@
 	margin-left: -1px;
 	margin-top: -1px;
 	z-index: 1;
-	box-shadow: 0 1px 4px rgba(0, 0, 0,  0.5);
 }
 
 .ui-cytoscape-panzoom-zoom-button:active,
@@ -146,7 +145,6 @@
 	height: 100px;
 	left: 5px;
 	background: #fff;
-	box-shadow: 0 0 1px 1px rgba(0, 0, 0, 0.25);
 	border-left: 1px solid #999;
 	border-right: 1px solid #999;
 }
@@ -159,9 +157,9 @@
 	border: 1px solid #999;
 	border-radius: 2px;
 	margin-left: -2px;
-	box-shadow: 0 1px 4px rgba(0, 0, 0,  0.5);
 	z-index: 999;
 	line-height: 8px;
+	cursor: default;
 }
 
 .ui-cytoscape-panzoom-slider-handle .icon {
@@ -190,7 +188,6 @@
 	width: 40px;
 	background: #fff;
 	border: 1px solid #999;
-	box-shadow: 0 1px 4px rgba(0, 0, 0,  0.5);
 	border-radius: 40px;
 	margin-left: -1px;
 }

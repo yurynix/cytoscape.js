@@ -11,3 +11,7 @@ docmaker:
 
 clean:
 	rm -rf index.html node_modules js/cytoscape.js js/cytoscape.min.js
+
+publish:
+	git commit -a -m 'publishing docs'
+	git push

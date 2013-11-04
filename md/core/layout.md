@@ -47,14 +47,14 @@ cy.layout( options );
 *The `breadthfirst` layout puts nodes in a hierarchy:*
 ```js
 options = {
-	name: 'breadthfirst',
     fit: true, // whether to fit the viewport to the graph
     ready: undefined, // callback on layoutready
     stop: undefined, // callback on layoutstop
     directed: true, // whether the tree is directed downwards (or edges can point in any direction if false)
     padding: 30, // padding on fit
     circle: false, // put depths in concentric circles if true, put depths top down if false
-    roots: undefined // the roots of the trees
+    roots: undefined, // the roots of the trees
+    maximalAdjustments: 0 // how many times to try to position the nodes in a maximal way (i.e. no backtracking)
 };
 
 cy.layout( options );
@@ -79,13 +79,13 @@ cy.layout( options );
 *The `arbor` layout uses a force-directed simulation:*
 ```js
 options = {
-	name: 'arbor',
 	liveUpdate: true, // whether to show the layout as it's running
 	ready: undefined, // callback on layoutready 
 	stop: undefined, // callback on layoutstop
 	maxSimulationTime: 4000, // max length in ms to run the layout
-	fit: true, // fit to viewport
+	fit: true, // reset viewport to fit default simulationBounds
 	padding: [ 50, 50, 50, 50 ], // top, right, bottom, left
+	simulationBounds: undefined, // [x1, y1, x2, y2]; [0, 0, width, height] by default
 	ungrabifyWhileSimulating: true, // so you can't drag nodes during layout
 
 	// forces used by arbor (use arbor default on undefined)
@@ -115,6 +115,8 @@ options = {
 cy.layout( options );
 ```
 
+Please note that the `liveUpdate` option is expensive, so if you are concerned about running time (e.g. for large graphs), you should set it to `false`.
+
 NB: You must reference the version of `arbor.js` included with Cytoscape.js in the `<head>` of your HTML document:
 
 ```html
@@ -132,6 +134,49 @@ Arbor does some automatic path finding because it uses web workers, and so it mu
 *The `null` layout puts all nodes at (0, 0):*
 ```js
 // The null layout has no options.
+```
+
+
+*The `CoSE` (Compound Spring Embedder) layout uses a force-directed simulation to lay out compound graphs.*<br>
+It was implemented by Gerardo Huck as part of Google Summer of Code 2013.<br>
+Mentors: Max Franz, Christian Lopes, Anders Riutta, Ugur Dogrusoz.<br>
+Based on the article "A layout algorithm for undirected compound graphs" by Ugur Dogrusoz, Erhan Giral, Ahmet Cetintas, Ali Civril and Emek Demir.<br>
+
+```js
+options = {
+	// Number of iterations between consecutive screen positions update (0 -> only updated on the end)
+	refresh             : 0,
+	// Whether to fit the network view after when done
+	fit                 : true, 
+	// Whether to randomize node positions on the beginning
+	randomize           : true,
+	// Whether to use the JS console to print debug messages
+	debug               : false,
+
+	// Node repulsion (non overlapping) multiplier
+	nodeRepulsion       : 10000,
+	// Node repulsion (overlapping) multiplier
+	nodeOverlap         : 10,
+	// Ideal edge (non nested) length
+	idealEdgeLength     : 10,
+	// Divisor to compute edge forces
+	edgeElasticity      : 100,
+	// Nesting factor (multiplier) to compute ideal edge length for nested edges
+	nestingFactor       : 5, 
+	// Gravity force (constant)
+	gravity             : 250, 
+	
+	// Maximum number of iterations to perform
+	numIter             : 100,
+	// Initial temperature (maximum node displacement)
+	initialTemp         : 200,
+	// Cooling factor (how the temperature is reduced between consecutive iterations)
+	coolingFactor       : 0.95, 
+	// Lower temperature threshold (below this point the layout will end)
+	minTemp             : 1
+};
+
+cy.layout( options );
 ```
 
 ## Examples

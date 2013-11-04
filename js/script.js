@@ -5,7 +5,7 @@ $(function(){
   }, 100);
 
   // fix for webkit
-  $('#navigation').on('mousewheel DOMMouseScroll MozMousePixelScroll', function(e){
+  $('#navigation').on('wheel mousewheel DOMMouseScroll MozMousePixelScroll', function(e){
     e.stopPropagation();
   });
 
@@ -14,8 +14,13 @@ $(function(){
   $('#navigation a').on('click', function(){
     var scroll = $('#navigation').scrollTop();
 
-    $('#navigation').scrollTop( scroll + 1 );
-    $('#navigation').scrollTop( scroll );
+    // force navigation to rerender, because some browsers (looking at you, chrome)
+    // don't render properly after clicking one of the links
+    setTimeout(function(){
+      $('#navigation').scrollTop( scroll + 10 );
+      $('#navigation').scrollTop( scroll - 10 );
+      $('#navigation').scrollTop( scroll );
+    }, 0);
   });
 
   loadCy();
@@ -34,6 +39,11 @@ $(function(){
   $('#cy-show').on('mousedown touchstart', function(){
     $('#cy, #cy-hide, #cy-refresh').show();
     $('#cy-show').hide();
+  });
+
+
+  $('#demo-source .expander').on('mousedown touchstart', function(){
+    $('#demo-source').removeClass('collapsed');
   });
 
   var $codes = $('pre code[class = "lang-js"]');
