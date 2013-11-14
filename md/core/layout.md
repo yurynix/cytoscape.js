@@ -47,6 +47,7 @@ cy.layout( options );
 *The `breadthfirst` layout puts nodes in a hierarchy:*
 ```js
 options = {
+	name: 'breadthfirst',
     fit: true, // whether to fit the viewport to the graph
     ready: undefined, // callback on layoutready
     stop: undefined, // callback on layoutstop
@@ -79,6 +80,7 @@ cy.layout( options );
 *The `arbor` layout uses a force-directed simulation:*
 ```js
 options = {
+	name: 'arbor',
 	liveUpdate: true, // whether to show the layout as it's running
 	ready: undefined, // callback on layoutready 
 	stop: undefined, // callback on layoutstop
@@ -144,6 +146,8 @@ Based on the article "A layout algorithm for undirected compound graphs" by Ugur
 
 ```js
 options = {
+	name: 'cose',
+
 	// Number of iterations between consecutive screen positions update (0 -> only updated on the end)
 	refresh             : 0,
 	// Whether to fit the network view after when done
