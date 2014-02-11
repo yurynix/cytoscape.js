@@ -1,5 +1,5 @@
 {
-  "version": "2.0.3",
+  "version": "2.1.0",
   "jqueryVersion": "1.4",
 
 
@@ -21,6 +21,10 @@
     { "name": "Style", "md": "style" },
 
     { "name": "Events", "md": "events" },
+
+    { "name": "Layouts", "md": "layouts" },
+
+    { "name": "Plugins", "md": "plugins" },
 
     {
       "name": "Core",
@@ -210,6 +214,23 @@
             },
 
             {
+              "name": "cy.userPanningEnabled",
+              "descr": "Get or set whether panning by user events (e.g. dragging the graph background) is enabled.",
+              "formats": [
+                {
+                  "descr": "Get whether user panning is enabled."
+                },
+
+                {
+                  "descr": "Set whether user panning is enabled.",
+                  "args": [
+                    { "name": "bool", "descr": "A truthy value enables user panning; a falsey value disables it." }
+                  ]
+                }
+              ]
+            },
+
+            {
               "name": "cy.zoom", 
               "descr": "Get or set the zoom level of the graph.",
               "formats": [
@@ -245,6 +266,23 @@
                   "descr": "Set whether zooming is enabled.",
                   "args": [
                     { "name": "bool", "descr": "A truthy value enables zooming; a falsey value disables it." }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "cy.userZoomingEnabled",
+              "descr": "Get or set whether zooming by user events (e.g. mouse wheel, pinch-to-zoom) is enabled.",
+              "formats": [
+                {
+                  "descr": "Get whether user zooming is enabled."
+                },
+
+                {
+                  "descr": "Set whether user zooming is enabled.",
+                  "args": [
+                    { "name": "bool", "descr": "A truthy value enables user zooming; a falsey value disables it." }
                   ]
                 }
               ]
@@ -299,6 +337,12 @@
                   ]
                 }
               ]
+            },
+
+            {
+              "name": "cy.forceRender",
+              "descr": "Force the renderer to redraw (i.e. draw a new frame).",
+              "md": "core/forceRender"
             }
           ]
 
@@ -339,6 +383,7 @@
                 {
                   "args": [
                     { "name": "events", "descr": "A space separated list of event names." },
+                    { "name": "selector", "descr": "A selector to specify elements for which the handler is triggered.", "optional": true },
                     { "name": "data", "descr": "A plain object which is passed to the handler in the event object argument.", "optional": true },
                     { "name": "function(evt)", "descr": "The handler function that is called when one of the specified events occurs.", "fields": [ { "name": "evt", "descr": "The event object." } ] }
                   ]
@@ -347,6 +392,7 @@
                 {
                   "args": [
                     { "name": "eventsMap", "descr": "A map of event names to handler functions." },
+                    { "name": "selector", "descr": "A selector to specify elements for which the handler is triggered.", "optional": true },
                     { "name": "data", "descr": "A plain object which is passed to the handler in the event object argument.", "optional": true }
                   ]
                 }
@@ -388,6 +434,12 @@
                 }
               ],
               "md": "core/trigger"
+            },
+
+            {
+              "name": "cy.initrender",
+              "descr": "Get whether the initial render event has occurred (useful for plugins etc).",
+              "md": "core/initrender"
             }
 
 
@@ -420,6 +472,37 @@
               "md": "core/style"
             }
           ]
+        },
+
+        {
+          "name": "Export",
+
+          "fns": [
+            {
+              "name": "cy.png",
+              "descr": "Export the current graph view as a PNG image in Base64 representation.",
+              "formats": [
+                {
+                  "args": [
+                    {
+                      "name": "options",
+                      "descr": "The export options.",
+                      "fields": [
+                        { "name": "bg", "descr": "The background colour of the image (transparent by default)." },
+                        { "name": "full", "descr": "Whether to export the current viewport view (false, default) or the entire graph (true)." }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "cy.json",
+              "descr": "Export the graph as JSON, the same format used at initialisation.",
+              "md": "core/json"
+            }
+          ]
         }
 
 
@@ -442,6 +525,11 @@
             {
               "name": "ele.removed",
               "descr": "Get whether the element has been removed from the graph."
+            },
+
+            {
+              "name": "ele.inside",
+              "descr": "Get whether the element is inside the graph (i.e. not removed)."
             },
 
             {
@@ -518,6 +606,12 @@
             },
 
             {
+              "name": "eles.jsons",
+              "descr": "Get an array of the plain JavaScript object representation of all elements in the collection.",
+              "md": "collection/jsons"
+            },
+
+            {
               "name": "ele.group",
               "descr": "Get the group string that defines the type of the element.",
               "md": "collection/group"
@@ -531,6 +625,11 @@
             {
               "name": "ele.isEdge",
               "descr": "Get whether the element is an edge."
+            },
+
+            {
+              "name": "edge.isLoop",
+              "descr": "Get whether the edge is a loop (i.e. source same as target)."
             }
 
           ]
@@ -654,7 +753,7 @@
 
             {
               "name": "node.renderedPosition",
-              "descr": "Get or set the rendered position of a node.",
+              "descr": "Get or set the rendered (on-screen) position of a node.",
               "formats": [
                 {
                   "descr": "Get the entire rendered position object."
@@ -689,9 +788,9 @@
               "descr": "Get the width of the element.",
               "formats": [
                 { "name": "ele.width", "descr": "Get the width of the element." },
-                { "name": "ele.outerWidth", "descr": "Get the outer width of the element (width & border)." },
+                { "name": "ele.outerWidth", "descr": "Get the outer width of the element (includes width & border)." },
                 { "name": "ele.renderedWidth", "descr": "Get the width of the element in rendered dimensions." },
-                { "name": "ele.renderedOuterWidth", "descr": "Get the outer width of the element (width & border) in rendered dimensions." }
+                { "name": "ele.renderedOuterWidth", "descr": "Get the outer width of the element (includes width & border) in rendered dimensions." }
               ]
             },
 
@@ -700,10 +799,48 @@
               "descr": "Get the height of the element.",
               "formats": [
                 { "name": "ele.height", "descr": "Get the height of the element." },
-                { "name": "ele.outerHeight", "descr": "Get the outer height of the element (height & border)." },
+                { "name": "ele.outerHeight", "descr": "Get the outer height of the element (includes height & border)." },
                 { "name": "ele.renderedHeight", "descr": "Get the height of the element in rendered dimensions." },
-                { "name": "ele.renderedOuterHeight", "descr": "Get the outer height of the element (height & border) in rendered dimensions." }
+                { "name": "ele.renderedOuterHeight", "descr": "Get the outer height of the element (includes height & border) in rendered dimensions." }
               ]
+            },
+
+            {
+              "name": "eles.boundingBox",
+              "descr": "Get the bounding box of the elements.",
+              "formats": [
+                { 
+                  "name": "ele.boundingBox", 
+                  "descr": "Get the bounding box of the elements in model coordinates.",
+                  "args": [
+                    { 
+                      "name": "options", 
+                      "descr": "An object containing options for the function.",
+                      "fields": [
+                        { "name": "includeNodes", "descr": "A boolean indicating whether to include nodes in the bounding box." },
+                        { "name": "includeEdges", "descr": "A boolean indicating whether to include edges in the bounding box." },
+                        { "name": "includeLabels", "descr": "A boolean indicating whether to include labels in the bounding box." }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "ele.renderedBoundingBox",
+                  "descr": "Get the bounding box of the elements in rendered coordinates.",
+                  "args": [
+                    { 
+                      "name": "options", 
+                      "descr": "An object containing options for the function.",
+                      "fields": [
+                        { "name": "includeNodes", "descr": "A boolean indicating whether to include nodes in the bounding box." },
+                        { "name": "includeEdges", "descr": "A boolean indicating whether to include edges in the bounding box." },
+                        { "name": "includeLabels", "descr": "A boolean indicating whether to include labels in the bounding box." }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "md": "collection/boundingBox"
             },
 
             {
@@ -794,6 +931,7 @@
                 {
                   "args": [
                     { "name": "events", "descr": "A space separated list of event names." },
+                    { "name": "selector", "descr": "A delegate selector to specify child elements for which the handler is triggered.", "optional": true },
                     { "name": "data", "descr": "A plain object which is passed to the handler in the event object argument.", "optional": true },
                     { "name": "function(evt)", "descr": "The handler function that is called when one of the specified events occurs.", "fields": [ { "name": "evt", "descr": "The event object." } ] }
                   ]
@@ -802,7 +940,7 @@
                 {
                   "args": [
                     { "name": "eventsMap", "descr": "A map of event names to handler functions." },
-                    { "name": "selector", "descr": "A selector to specify elements for which the handler is triggered.", "optional": true },
+                    { "name": "selector", "descr": "A delegate selector to specify child elements for which the handler is triggered.", "optional": true },
                     { "name": "data", "descr": "A plain object which is passed to the handler in the event object argument.", "optional": true }
                   ]
                 }
@@ -817,6 +955,7 @@
                 {
                   "args": [
                     { "name": "events", "descr": "A space separated list of event names." },
+                    { "name": "selector", "descr": "A delegate selector to specify child elements for which the handler is triggered.", "optional": true },
                     { "name": "data", "descr": "A plain object which is passed to the handler in the event object argument.", "optional": true },
                     { "name": "function(evt)", "descr": "The handler function that is called when one of the specified events occurs.", "fields": [ { "name": "evt", "descr": "The event object." } ] }
                   ]
@@ -825,6 +964,7 @@
                 {
                   "args": [
                     { "name": "eventsMap", "descr": "A map of event names to handler functions." },
+                    { "name": "selector", "descr": "A delegate selector to specify child elements for which the handler is triggered.", "optional": true },
                     { "name": "data", "descr": "A plain object which is passed to the handler in the event object argument.", "optional": true }
                   ]
                 }
@@ -839,6 +979,7 @@
                 {
                   "args": [
                     { "name": "events", "descr": "A space separated list of event names." },
+                    { "name": "selector", "descr": "A delegate selector to specify child elements for which the handler is triggered.", "optional": true },
                     { "name": "data", "descr": "A plain object which is passed to the handler in the event object argument.", "optional": true },
                     { "name": "function(evt)", "descr": "The handler function that is called when one of the specified events occurs.", "fields": [ { "name": "evt", "descr": "The event object." } ] }
                   ]
@@ -847,6 +988,7 @@
                 {
                   "args": [
                     { "name": "eventsMap", "descr": "A map of event names to handler functions." },
+                    { "name": "selector", "descr": "A delegate selector to specify child elements for which the handler is triggered.", "optional": true },
                     { "name": "data", "descr": "A plain object which is passed to the handler in the event object argument.", "optional": true }
                   ]
                 }
@@ -861,6 +1003,7 @@
                 {
                   "args": [
                     { "name": "events", "descr": "A space separated list of event names." },
+                    { "name": "selector", "descr": "The same delegate selector used to bind to the events.", "optional": true },
                     { "name": "handler", "descr": "A reference to the handler function to remove.", "optional": true }
                   ]
                 },
@@ -868,7 +1011,7 @@
                 {
                   "args": [
                     { "name": "eventsMap", "descr": "A map of event names to handler functions to remove." },
-                    { "name": "selector", "descr": "The same selector used to bind to the events.", "optional": true }
+                    { "name": "selector", "descr": "The same delegate selector used to bind to the events.", "optional": true }
                   ]
                 }
               ],
@@ -930,7 +1073,8 @@
 
             {
               "name": "eles.removeCss",
-              "descr": "Removes all overridden style of the elements."
+              "descr": "Removes all overridden style of the elements.",
+              "md": "collection/removeCss"
             },
 
             {
@@ -945,25 +1089,42 @@
                   "descr": "Get a particular rendered style property value.",
                   "args": [ { "name": "name", "descr": "The name of the visual style property to get." } ]
                 }
-              ]
+              ],
+              "md": "collection/renderedCss"
             },
 
             {
               "name": "eles.show",
-              "descr": "Override the style of the elements such that they are visible."
+              "descr": "Override the style of the elements such that they are visible (i.e. `display: element`)."
             },
 
             {
               "name": "eles.hide",
-              "descr": "Override the style of the elements such that they are hidden."
+              "descr": "Override the style of the elements such that they are hidden (i.e. `display: none`)."
             },
 
             {
               "name": "ele.visible",
-              "descr": "Get whether the element is visible.",
+              "descr": "Get whether the element is visible (i.e. `display: element` and `visibility: visible`).",
               "formats": [
                 { "name": "ele.visible", "descr": "Get whether the element is visible." },
                 { "name": "ele.hidden", "descr": "Get whether the element is hidden." }
+              ]
+            },
+
+            {
+              "name": "ele.effectiveOpacity",
+              "descr": "Get the effective opacity of the element (i.e. on-screen opacity), which takes into consideration parent node opacity.",
+              "formats": [
+                { "descr": "Get the effective opacity of the element, which takes into consideration parent node opacity." }
+              ]
+            },
+
+            {
+              "name": "ele.transparent",
+              "descr": "Get whether the element's effective opacity is completely transparent, which takes into consideration parent node opacity.",
+              "formats": [
+                { "name": "ele.transparent", "descr": "Get whether the element is transparent." }
               ]
             },
 
@@ -1031,6 +1192,7 @@
                       "descr": "An object containing the properties to animate.",
                       "fields": [
                         { "name": "position", "descr": "A position to which the elements will be animated." },
+                        { "name": "renderedPosition", "descr": "A rendered position to which the elements will be animated." },
                         { "name": "css", "descr": "An object containing name-value pairs of style properties to animate." }
                       ]
                     },
@@ -1206,7 +1368,7 @@
               "formats": [
                 {
                   "args": [
-                    { "name": "start", "descr": "An integer that specifies where to start the selection.  The first element has an index of 0.  Use negative numbers to select from the end of an array." },
+                    { "name": "start", "descr": "An integer that specifies where to start the selection.  The first element has an index of 0.  Use negative numbers to select from the end of an array.", "optional": true },
                     { "name": "end", "descr": "An integer that specifies where to end the selection. If omitted, all elements from the start position and to the end of the array will be selected. Use negative numbers to select from the end of an array.", "optional": true }
                   ]
                 }
@@ -1288,6 +1450,18 @@
             {
               "name": "edges.connectedNodes",
               "descr": "Get the nodes connected to the edges in the collection.",
+              "formats": [
+                {
+                  "args": [
+                    { "name": "selector", "descr": "An optional selector that is used to filter the resultant collection.", "optional": true }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "nodes.connectedEdges",
+              "descr": "Get the edges connected to the nodes in the collection.",
               "formats": [
                 {
                   "args": [
@@ -1457,7 +1631,91 @@
             }
             
           ]
+        },
+
+        {
+          "name": "Compound nodes",
+          "fns": [
+            {
+              "name": "node.isParent",
+              "descr": "Get whether the node is a parent (i.e. a node containing one or more child nodes)"
+            },
+
+            {
+              "name": "node.isChild",
+              "descr": "Get whether the node is a child (i.e. contained within a node)"
+            },
+
+            {
+              "name": "nodes.parent",
+              "descr": "Get the parent node of each node in the collection.",
+              "formats": [
+                {
+                  "args": [
+                    { "name": "selector", "descr": "A selector used to filter the resultant collection.", "optional": true }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "nodes.parents",
+              "descr": "Get all ancestor nodes of each node in the collection.",
+              "formats": [
+                {
+                  "args": [
+                    { "name": "selector", "descr": "A selector used to filter the resultant collection.", "optional": true }
+                  ]
+                },
+
+                {
+                  "name": "nodes.ancestors",
+                  "args": [
+                    { "name": "selector", "descr": "A selector used to filter the resultant collection.", "optional": true }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "nodes.children",
+              "descr": "Get all child (direct descendant) nodes of each node in the collection.",
+              "formats": [
+                {
+                  "args": [
+                    { "name": "selector", "descr": "A selector used to filter the resultant collection.", "optional": true }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "nodes.descendants",
+              "descr": "Get all descendant (children, children's children, etc.) nodes of each node in the collection.",
+              "formats": [
+                {
+                  "args": [
+                    { "name": "selector", "descr": "A selector used to filter the resultant collection.", "optional": true }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "nodes.siblings",
+              "descr": "Get all sibling (same parent) nodes of each node in the collection.",
+              "formats": [
+                {
+                  "args": [
+                    { "name": "selector", "descr": "A selector used to filter the resultant collection.", "optional": true }
+                  ]
+                }
+              ]
+            }
+            
+          ]
         }
+
       ]
     },
 

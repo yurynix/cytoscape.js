@@ -36,7 +36,6 @@ A rendered position is an on-screen location relative to the viewport.  For exam
 
 In this documentation, "position" refers to model position unless otherwise stated.
 
-
 ## Elements JSON
 
 Examples are given that outline format of the elements JSON used to load elements into Cytoscape.js:
@@ -48,6 +47,7 @@ $('#cy').cytoscape({
     { // node n1
       group: 'nodes', // 'nodes' for a node, 'edges' for an edge
 
+      // NB: id fields must be strings
       data: { // element data (put dev data here)
       	id: 'n1', // mandatory for each element, assigned automatically on undefined
       	parent: 'nparent', // indicates the compound node parent id; not defined => no parent
@@ -67,6 +67,9 @@ $('#cy').cytoscape({
       grabbable: true, // whether the node can be grabbed and moved by the user
 
       classes: 'foo bar' // a space separated list of class names that the element has
+
+      // NB: you should only use `css` for very special cases; use classes instead
+      css: { backgroundColor: red } // overriden style properties
     },
 
     { // node n2

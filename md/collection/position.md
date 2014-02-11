@@ -1,6 +1,6 @@
 ## Details
 
-A position has two fields, `x` and `y`, that can take on numerical values.  Non-numerical values are ignored.
+A position has two fields, `x` and `y`, that can take on numerical values.
 
 ## Examples
 

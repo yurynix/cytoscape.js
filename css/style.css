@@ -3,6 +3,8 @@ body {
 	line-height: 1.5;
 }
 
+* { -webkit-tap-highlight-color: transparent !important; }
+
 #cy {
 	position: fixed;
 	z-index: 999;
@@ -51,18 +53,16 @@ body {
 	z-index: 1000;
 }
 
-#cy-hide,
-#cy-show {
+#cy-hide {
 	right: 0;
 }
 
 #cy-show {
-	bottom: 0;
-}
-
-#cy-show {
-	background: #fff;
+	right: 0.75em;
+	bottom: 0.75em;
+	background: rgba(255, 255, 255, 0.66);
 	border-radius: 0;
+	border: 1px solid #ccc;
 	display: none;
 }
 
@@ -258,6 +258,10 @@ button:active {
 
 .links {
 	color: #ccc;
+}
+
+.links a {
+	white-space: nowrap;
 }
 
 h1 {

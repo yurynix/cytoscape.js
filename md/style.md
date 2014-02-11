@@ -6,8 +6,34 @@ It is important to note that in your stylesheet, [specificity rules](http://www.
 
 ## Format
 
-The style specified at [initialisation](#core/initialisation) can be in a functional format or in a plain JSON format, the plain JSON format being more useful if you want to pull down the style from the server.
+The style specified at [initialisation](#core/initialisation) can be in a functional format, in a plain JSON format, or in a string format &mdash; the plain JSON format and string format being more useful if you want to pull down the style from the server.  If you pull the style from the server, you must initialise Cytoscape.js after the style has been loaded.
 
+
+
+### String format
+
+Note that the trailing semicolons for each property are mandatory.  Parsing will certainly fail without them.
+
+An example style file:
+
+```
+/* comments may be entered like this */
+node {
+  background-color: green;
+}
+``` 
+
+At initialisation:
+
+```js
+$('#cy').cytoscape({
+  // ...
+
+  style: aStyleString // probably previously loaded via ajax
+
+  // , ...
+});
+```
 
 ### Plain JSON format
 
@@ -76,6 +102,7 @@ Labels:
  * **`text-outline-color`** : The colour of the outline around the element's label text.
  * **`text-outline-opacity`** : The opacity of the outline on label text.
  * **`text-outline-width`** : The size of the outline on label text.
+ * **`min-zoomed-font-size`** : If zooming makes the effective font size of the label smaller than this, then no label is shown.
 
 Size & visibility:
 
@@ -109,7 +136,16 @@ Body:
  * **`border-opacity`** : The opacity of the node's border.
  * **`border-width`** : The size of the node's border.
  * **`height`** : The height of the node's body.
- * **`shape`** : The shape of the node's body; may be `rectangle`, `roundrectangle`, `ellipse`, `triangle`, `pentagon`, `hexagon`, `heptagon`, `octagon`.
+ * **`shape`** : The shape of the node's body; may be `rectangle`, `roundrectangle`, `ellipse`, `triangle`, `pentagon`, `hexagon`, `heptagon`, `octagon`, `star`.  Note that each shape fits with the specified `width` and `height`, and so you may have to adjust `width` and `height` if you desire an equilateral shape (i.e. `width !== height` for several equilateral shapes).
+
+Pie chart background:
+
+These properties allow you to create pie chart backgrounds on nodes.  Note that 16 slices maximum are supported per node, so in the properties `1 <= i <= 16`.  Of course, you must specify a numerical value for each property in place of `i`.  Each nonzero sized slice is placed in order of `i`, starting from the 12 o'clock position and working clockwise.
+
+You may find it useful to reserve a number to a particular colour for all nodes in your stylesheet.  Then you can specify values for `pie-i-background-size` accordingly for each node via a [mapper](#style/mappers).  This would allow you to create consistently coloured pie charts in each node of the graph based on element data.
+
+ * **`pie-i-background-color`** : The colour of the node's ith pie chart slice.
+ * **`pie-i-background-size`** : The size of the node's ith pie chart slice, measured in percent (e.g. `25%` or `25`).
 
 Compound nodes:
 
