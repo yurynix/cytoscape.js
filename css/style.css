@@ -321,6 +321,7 @@ a.button {
 	color: #fff;
 	cursor: pointer;
 	padding: 0.25em 0.5em;
+	margin: 0 0.25em;
 	white-space: nowrap;
 }
 
