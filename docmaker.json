@@ -1,5 +1,5 @@
 {
-  "version": "2.2.2",
+  "version": "2.2.3",
   "jqueryVersion": "1.4",
 
   "templates": {
@@ -232,6 +232,40 @@
                   "descr": "Set whether user panning is enabled.",
                   "args": [
                     { "name": "bool", "descr": "A truthy value enables user panning; a falsey value disables it." }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "cy.autolockNodes",
+              "descr": "Get or set whether nodes are automatically locked (i.e. if `true`, nodes are locked despite their individual state).",
+              "formats": [
+                {
+                  "descr": "Get whether autolocking is enabled."
+                },
+
+                {
+                  "descr": "Set whether autolocking is enabled.",
+                  "args": [
+                    { "name": "bool", "descr": "A truthy value enables autolocking; a falsey value disables it." }
+                  ]
+                }
+              ]
+            },
+
+            {
+              "name": "cy.autoungrabifyNodes",
+              "descr": "Get or set whether nodes are automatically ungrabifies (i.e. if `true`, nodes are ungrabbale despite their individual state).",
+              "formats": [
+                {
+                  "descr": "Get whether autoungrabbifying is enabled."
+                },
+
+                {
+                  "descr": "Set whether autoungrabbifying is enabled.",
+                  "args": [
+                    { "name": "bool", "descr": "A truthy value enables autoungrabbifying; a falsey value disables it." }
                   ]
                 }
               ]

@@ -122,7 +122,12 @@ $('#cy').cytoscape({
   userZoomingEnabled: true,
   pan: { x: 0, y: 0 },
   panningEnabled: true,
+  userPanningEnabled: true,
+  autolockNodes: false,
+  autoungrabifyNodes: false,
   hideEdgesOnViewport: false,
+  hideLabelsOnViewport: false,
+  textureOnViewport: false,
   renderer: { /* ... */ },
   style: undefined /* ... */,
   ready: function(evt){ /* ... */ },
@@ -145,9 +150,19 @@ $('#cy').cytoscape({
 
 **`panningEnabled`** : Whether panning the graph is enabled, both by user events and programmatically.
 
+**`userPanningEnabled`** : Whether panning the graph is enabled by user events.
+
 **`userPanningEnabled`** : Whether user events (e.g. dragging the graph background) are allowed to pan the graph.  Programmatic changes to pan are unaffected by this option.
 
-**`hideEdgesOnViewport`** : When set to `true`, the renderer does not render edges while the viewport is being manipulated.  This makes panning and zooming more responsive for large graphs.
+**`autolockNodes`** : Whether nodes should be locked by default (if `true`, overrides individual node state).
+
+**`autoungrabifyNodes`** : Whether nodes should be ungrabified (not grabbable by user) by default (if `true`, overrides individual node state).
+
+**`hideEdgesOnViewport`** : When set to `true`, the renderer does not render edges while the viewport is being manipulated.  This makes panning, zooming, dragging, et cetera more responsive for large graphs.
+
+**`hideLabelsOnViewport`** : When set to `true`, the renderer does not render labels while the viewport is being manipulated.  This makes panning, zooming, dragging, et cetera more responsive for large graphs.
+
+**`textureOnViewport`** : When set to `true`, the renderer uses a texture (if supported) during panning and zooming instead of drawing the elements, making large graphs more responsive.
 
 **`renderer`** : A plain object containing options for the renderer to be used.  The `options.renderer.name` field specifies which renderer is used.  You need not specify anything for the `renderer` option, unless you want to specify one of the rendering options below:
 
