@@ -1,12 +1,25 @@
 {
-  "version": "2.2.7",
+  "version": "2.2.8",
   "jqueryVersion": "1.4",
 
-  "templates": {
-    "TODO": "we are not using function templates yet but it might be nice"
-  },
-
   "sections": [
+    {
+      "name": "Demos",
+      "demos": [
+        { "name": "Initialisation", "id": "urabis" },
+        { "name": "Visual style", "id": "aqupun" },
+        { "name": "Compound nodes", "id": "domek" },
+        { "name": "Animated BFS", "id": "qohop" },
+        { "name": "GeneMANIA export", "id": "wuvac" },
+        { "name": "Images", "id": "kahar" },
+        { "name": "qTip plugin", "id": "royel" },
+        { "name": "Pie style", "id": "yozazu" },
+        { "name": "Multiple instances", "id": "zurup" },
+        { "name": "Performance tuning", "id": "yeqom" },
+        { "name": "AngularJS example", "id": "kewem" }
+      ]
+    },
+
     { "name": "Introduction", "md": "intro" },
 
     { "name": "Notation", "md": "notation" },
