@@ -384,7 +384,9 @@ cy = cytoscape( options = {
 <p>In this documentation, &quot;position&quot; refers to model position unless otherwise stated.</p>
 <h2 id="notation/elements-json">Elements JSON <a href="#notation/elements-json"><span class="icon-bookmark"></span></a></h2>
 <p>Examples are given that outline format of the elements JSON used to load elements into Cytoscape.js:</p>
-<pre><code class="lang-js">$(<span class="hljs-string">'#cy'</span>).cytoscape({
+<pre><code class="lang-js">cytoscape({
+
+  container: document.getElementById(<span class="hljs-string">'cy'</span>),
 
   elements: [
     { <span class="hljs-comment">// node n1</span>
@@ -392,13 +394,13 @@ cy = cytoscape( options = {
 
       <span class="hljs-comment">// NB: id fields must be strings</span>
       data: { <span class="hljs-comment">// element data (put dev data here)</span>
-          id: <span class="hljs-string">'n1'</span>, <span class="hljs-comment">// mandatory for each element, assigned automatically on undefined</span>
-          parent: <span class="hljs-string">'nparent'</span>, <span class="hljs-comment">// indicates the compound node parent id; not defined =&gt; no parent</span>
+        id: <span class="hljs-string">'n1'</span>, <span class="hljs-comment">// mandatory for each element, assigned automatically on undefined</span>
+        parent: <span class="hljs-string">'nparent'</span>, <span class="hljs-comment">// indicates the compound node parent id; not defined =&gt; no parent</span>
       },
 
       position: { <span class="hljs-comment">// the model position of the node (optional on init, mandatory after)</span>
-          x: <span class="hljs-number">100</span>,
-          y: <span class="hljs-number">100</span>
+        x: <span class="hljs-number">100</span>,
+        y: <span class="hljs-number">100</span>
       },
 
       selected: <span class="hljs-literal">false</span>, <span class="hljs-comment">// whether the element is selected (default false)</span>
@@ -409,10 +411,10 @@ cy = cytoscape( options = {
 
       grabbable: <span class="hljs-literal">true</span>, <span class="hljs-comment">// whether the node can be grabbed and moved by the user</span>
 
-      classes: <span class="hljs-string">'foo bar'</span> <span class="hljs-comment">// a space separated list of class names that the element has</span>
+      classes: <span class="hljs-string">'foo bar'</span>, <span class="hljs-comment">// a space separated list of class names that the element has</span>
 
       <span class="hljs-comment">// NB: you should only use `css` for very special cases; use classes instead</span>
-      css: { backgroundColor: red } <span class="hljs-comment">// overriden style properties</span>
+      css: { <span class="hljs-string">'background-color'</span>: <span class="hljs-string">'red'</span> } <span class="hljs-comment">// overriden style properties</span>
     },
 
     { <span class="hljs-comment">// node n2</span>
@@ -429,18 +431,22 @@ cy = cytoscape( options = {
 
     { <span class="hljs-comment">// node nparent</span>
       group: <span class="hljs-string">'nodes'</span>,
-      data: { id: <span class="hljs-string">'nparent'</span> }
+      data: { id: <span class="hljs-string">'nparent'</span>, position: { x: <span class="hljs-number">200</span>, y: <span class="hljs-number">100</span> } }
     },
 
     { <span class="hljs-comment">// edge e1</span>
       group: <span class="hljs-string">'edges'</span>,
       data: {
-          id: <span class="hljs-string">'e1'</span>,
-          source: <span class="hljs-string">'n1'</span>, <span class="hljs-comment">// the source node id (edge comes from this node)</span>
-          target: <span class="hljs-string">'n2'</span>  <span class="hljs-comment">// the target node id (edge goes to this node)</span>
+        id: <span class="hljs-string">'e1'</span>,
+        source: <span class="hljs-string">'n1'</span>, <span class="hljs-comment">// the source node id (edge comes from this node)</span>
+        target: <span class="hljs-string">'n2'</span>  <span class="hljs-comment">// the target node id (edge goes to this node)</span>
       }
     }
   ],
+
+  layout: {
+    name: <span class="hljs-string">'preset'</span>
+  },
 
   <span class="hljs-comment">// so we can see the ids</span>
   style: [
@@ -508,7 +514,7 @@ cy = cytoscape( options = {
 </li>
 <li><strong>Simplify edge style</strong> : Use solid edges.  Dotted and dashed edges are much more expensive to draw, so you will get increased performance by not using them.</li>
 <li><strong>Simplify node style</strong> : Keep your node styles simple to improve performance.  <ul>
-<li>Background images are very expensive in certain cases.  The most performant background images are non-repeating (<code>background-repeat: no-repeat</code>) and non-clipped (<code>background-clip: none</code>).  For simple node shapes like squares or circles, you can use <code>background-fit</code> for scaling and preclip your images to simulate software clipping (e.g. with <a href="gulp">https://github.com/scalableminds/gulp-image-resize</a> so it&#39;s automated).  In lieu of preclipping, you could make clever use of PNGs with transparent backgrounds.</li>
+<li>Background images are very expensive in certain cases.  The most performant background images are non-repeating (<code>background-repeat: no-repeat</code>) and non-clipped (<code>background-clip: none</code>).  For simple node shapes like squares or circles, you can use <code>background-fit</code> for scaling and preclip your images to simulate software clipping (e.g. with <a href="gulp"><a href="https://github.com/scalableminds/gulp-image-resize">https://github.com/scalableminds/gulp-image-resize</a></a> so it&#39;s automated).  In lieu of preclipping, you could make clever use of PNGs with transparent backgrounds.</li>
 <li>Node borders can be slightly expensive, so you can experiment with removing them to see if it makes a noticeable difference for your use case.</li>
 </ul>
 </li>
