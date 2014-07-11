@@ -20,13 +20,13 @@
 
 		<div id="content">
 
-			<h1 id="top" class="title">Cytoscape.js <span class="description">An open-source JavaScript graph theory library for analysis and visualisation (compatible with CommonJS/Node.js, AMD/Require.js, Bower, npm, jQuery 1.4+, and plain JavaScript)</span><span class="version">2.2.10</span></h1>
+			<h1 id="top" class="title">Cytoscape.js <span class="description">An open-source JavaScript graph theory library for analysis and visualisation (compatible with CommonJS/Node.js, AMD/Require.js, Bower, npm, jQuery 1.4+, and plain JavaScript)</span><span class="version">2.2.11</span></h1>
 			<div class="subtitle">An open-source JavaScript graph theory library for analysis and visualisation (compatible with <a target="_blank" href="http://wiki.commonjs.org/wiki/CommonJS">CommonJS</a>/<a target="_blank" href="http://nodejs.org/">Node.js</a>, <a target="_blank" href="http://requirejs.org">AMD/Require.js</a>, <a target="_blank" href="http://jquery.com/">jQuery</a> 1.4+, <a target="_blank" href="http://bower.io">Bower</a>, <a target="_blank" href="http://npmjs.org">npm</a>, and plain JavaScript)</div>
 			
 			<div class="buttons-subtitle">
 				<a class="button green" target="_blank" href="https://github.com/cytoscape/cytoscape.js"><span class="icon-github-alt"></span> View on GitHub</a>
 
-				<a id="download-button" class="button green" href="download/cytoscape.js-2.2.10.zip"><span class="icon-download-alt"></span> Download</a>
+				<a id="download-button" class="button green" href="download/cytoscape.js-2.2.11.zip"><span class="icon-download-alt"></span> Download</a>
 			</div>
 
 			<div class="links">
@@ -1077,6 +1077,9 @@ cy.layout( options );
     levelWidth: <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(nodes)</span>{</span> <span class="hljs-comment">// the variation of concentric values in each level</span>
       <span class="hljs-keyword">return</span> nodes.maxDegree() / <span class="hljs-number">4</span>;
     }
+};
+
+cy.layout( options );
 </code></pre>
 <h2 id="layouts/breadthfirst">Breadthfirst <a href="#layouts/breadthfirst"><span class="icon-bookmark"></span></a></h2>
 <p>The <code>breadthfirst</code> layout puts nodes in a hierarchy, based on a breadthfirst traversal of the graph.</p>
