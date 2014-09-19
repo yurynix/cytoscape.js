@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.3.0-hotfix.
+ * This file is part of Cytoscape.js 2.3.1.
  * 
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -29,7 +29,7 @@ var cytoscape;
     return cytoscape.init.apply(cytoscape, arguments);
   };
 
-  $$.version = '2.3.0-hotfix';
+  $$.version = '2.3.1';
   
   // allow functional access to cytoscape.js
   // e.g. var cyto = $.cytoscape({ selector: "#foo", ... });
