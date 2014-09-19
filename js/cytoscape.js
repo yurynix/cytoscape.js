@@ -4797,6 +4797,7 @@ var cytoscape;
           'background-color': '#888',
           'background-opacity': 1,
           'background-image': 'none',
+          'background-image-opacity': 1,
           'background-position-x': '50%',
           'background-position-y': '50%',
           'background-repeat': 'no-repeat',
@@ -4999,7 +5000,8 @@ var cytoscape;
         strValue: '' + value,
         mapped: isLayout ? $$.style.types.layoutData : $$.style.types.data,
         field: data[1],
-        bypass: propIsBypass
+        bypass: propIsBypass,
+        hasPie: name.match(/pie-(\d+)-background-size/)
       };
 
     } else if(
@@ -5052,7 +5054,8 @@ var cytoscape;
         fieldMax: parseFloat( mapData[3] ),
         valueMin: valueMin.value,
         valueMax: valueMax.value,
-        bypass: propIsBypass
+        bypass: propIsBypass,
+        hasPie: name.match(/pie-(\d+)-background-size/)
       };
     }
 
