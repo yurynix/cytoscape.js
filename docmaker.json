@@ -1,5 +1,5 @@
 {
-  "version": "2.3.1",
+  "version": "2.3.2",
 
   "fnArgLinks": {
     "selector": "#selectors",
@@ -27,6 +27,7 @@
       "demos": [
         { "name": "Initialisation", "id": "urabis" },
         { "name": "Visual style", "id": "aqupun" },
+        { "name": "Linkout example", "id": "pajoc" },
         { "name": "Compound nodes", "id": "domek" },
         { "name": "Animated BFS", "id": "qohop" },
         { "name": "GeneMANIA export", "id": "wuvac" },
@@ -36,7 +37,7 @@
         { "name": "Multiple instances", "id": "zurup" },
         { "name": "Performance tuning", "id": "yeqom" },
         { "name": "AngularJS example", "id": "kewem" },
-        { "name": "Linkout example", "id": "pajoc" }
+        { "name": "Tokyo railway", "id": "suteci" }
       ]
     },
 
@@ -77,7 +78,7 @@
 
             {
               "name": "cy.load",
-              "descr": "Load a graph.",
+              "descr": "Empty the graph, add the specified elements, and reapply the initialisation layout.",
               "formats": [
                 { "args": [
                   { "name": "eleObjs", "descr": "An array of plain objects that specify the elements to load." },
