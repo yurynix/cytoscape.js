@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.4.0-unstable.
+ * This file is part of Cytoscape.js 2.3-beta.
  * 
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -29,7 +29,7 @@ var cytoscape;
     return cytoscape.init.apply(cytoscape, arguments);
   };
 
-  $$.version = '2.4.0-unstable';
+  $$.version = '2.3-beta';
   
   // allow functional access to cytoscape.js
   // e.g. var cyto = $.cytoscape({ selector: "#foo", ... });
@@ -76,223 +76,9 @@ var cytoscape;
   
 })( typeof window === 'undefined' ? null : window );
 
-// internal, minimal Promise impl s.t. apis can return promises in old envs
-// based on thenable (http://github.com/rse/thenable)
-
-// NB: you must use `new $$.Promise`, because you may have native promises that don't autonew for you
-
-;(function($$){ 'use strict';
-  
-  /*  promise states [Promises/A+ 2.1]  */
-  var STATE_PENDING   = 0;                                         /*  [Promises/A+ 2.1.1]  */
-  var STATE_FULFILLED = 1;                                         /*  [Promises/A+ 2.1.2]  */
-  var STATE_REJECTED  = 2;                                         /*  [Promises/A+ 2.1.3]  */
-
-  /*  promise object constructor  */
-  var api = function (executor) {
-    /*  optionally support non-constructor/plain-function call  */
-    if (!(this instanceof api))
-      return new api(executor);
-
-    /*  initialize object  */
-    this.id           = "Thenable/1.0.7";
-    this.state        = STATE_PENDING; /*  initial state  */
-    this.fulfillValue = undefined;     /*  initial value  */     /*  [Promises/A+ 1.3, 2.1.2.2]  */
-    this.rejectReason = undefined;     /*  initial reason */     /*  [Promises/A+ 1.5, 2.1.3.2]  */
-    this.onFulfilled  = [];            /*  initial handlers  */
-    this.onRejected   = [];            /*  initial handlers  */
-
-    /*  provide optional information-hiding proxy  */
-    this.proxy = {
-      then: this.then.bind(this)
-    };
-
-    /*  support optional executor function  */
-    if (typeof executor === "function")
-      executor.call(this, this.fulfill.bind(this), this.reject.bind(this));
-  };
-
-  /*  promise API methods  */
-  api.prototype = {
-    /*  promise resolving methods  */
-    fulfill: function (value) { return deliver(this, STATE_FULFILLED, "fulfillValue", value); },
-    reject:  function (value) { return deliver(this, STATE_REJECTED,  "rejectReason", value); },
-
-    /*  "The then Method" [Promises/A+ 1.1, 1.2, 2.2]  */
-    then: function (onFulfilled, onRejected) {
-      var curr = this;
-      var next = new api();                                    /*  [Promises/A+ 2.2.7]  */
-      curr.onFulfilled.push(
-        resolver(onFulfilled, next, "fulfill"));             /*  [Promises/A+ 2.2.2/2.2.6]  */
-      curr.onRejected.push(
-        resolver(onRejected,  next, "reject" ));             /*  [Promises/A+ 2.2.3/2.2.6]  */
-      execute(curr);
-      return next.proxy;                                       /*  [Promises/A+ 2.2.7, 3.3]  */
-    }
-  };
-
-  /*  deliver an action  */
-  var deliver = function (curr, state, name, value) {
-    if (curr.state === STATE_PENDING) {
-      curr.state = state;                                      /*  [Promises/A+ 2.1.2.1, 2.1.3.1]  */
-      curr[name] = value;                                      /*  [Promises/A+ 2.1.2.2, 2.1.3.2]  */
-      execute(curr);
-    }
-    return curr;
-  };
-
-  /*  execute all handlers  */
-  var execute = function (curr) {
-    if (curr.state === STATE_FULFILLED)
-      execute_handlers(curr, "onFulfilled", curr.fulfillValue);
-    else if (curr.state === STATE_REJECTED)
-      execute_handlers(curr, "onRejected",  curr.rejectReason);
-  };
-
-  /*  execute particular set of handlers  */
-  var execute_handlers = function (curr, name, value) {
-    /* global process: true */
-    /* global setImmediate: true */
-    /* global setTimeout: true */
-
-    /*  short-circuit processing  */
-    if (curr[name].length === 0)
-      return;
-
-    /*  iterate over all handlers, exactly once  */
-    var handlers = curr[name];
-    curr[name] = [];                                             /*  [Promises/A+ 2.2.2.3, 2.2.3.3]  */
-    var func = function () {
-      for (var i = 0; i < handlers.length; i++)
-        handlers[i](value);                                  /*  [Promises/A+ 2.2.5]  */
-    };
-
-    /*  execute procedure asynchronously  */                     /*  [Promises/A+ 2.2.4, 3.1]  */
-    if (typeof process === "object" && typeof process.nextTick === "function")
-      process.nextTick(func);
-    else if (typeof setImmediate === "function")
-      setImmediate(func);
-    else
-      setTimeout(func, 0);
-  };
-
-  /*  generate a resolver function  */
-  var resolver = function (cb, next, method) {
-    return function (value) {
-      if (typeof cb !== "function")                            /*  [Promises/A+ 2.2.1, 2.2.7.3, 2.2.7.4]  */
-        next[method].call(next, value);                      /*  [Promises/A+ 2.2.7.3, 2.2.7.4]  */
-      else {
-        var result;
-        try { result = cb(value); }                          /*  [Promises/A+ 2.2.2.1, 2.2.3.1, 2.2.5, 3.2]  */
-        catch (e) {
-          next.reject(e);                                  /*  [Promises/A+ 2.2.7.2]  */
-          return;
-        }
-        resolve(next, result);                               /*  [Promises/A+ 2.2.7.1]  */
-      }
-    };
-  };
-
-  /*  "Promise Resolution Procedure"  */                           /*  [Promises/A+ 2.3]  */
-  var resolve = function (promise, x) {
-    /*  sanity check arguments  */                               /*  [Promises/A+ 2.3.1]  */
-    if (promise === x || promise.proxy === x) {
-      promise.reject(new TypeError("cannot resolve promise with itself"));
-      return;
-    }
-
-    /*  surgically check for a "then" method
-      (mainly to just call the "getter" of "then" only once)  */
-    var then;
-    if ((typeof x === "object" && x !== null) || typeof x === "function") {
-      try { then = x.then; }                                   /*  [Promises/A+ 2.3.3.1, 3.5]  */
-      catch (e) {
-        promise.reject(e);                                   /*  [Promises/A+ 2.3.3.2]  */
-        return;
-      }
-    }
-
-    /*  handle own Thenables    [Promises/A+ 2.3.2]
-      and similar "thenables" [Promises/A+ 2.3.3]  */
-    if (typeof then === "function") {
-      var resolved = false;
-      try {
-        /*  call retrieved "then" method */                  /*  [Promises/A+ 2.3.3.3]  */
-        then.call(x,
-          /*  resolvePromise  */                           /*  [Promises/A+ 2.3.3.3.1]  */
-          function (y) {
-            if (resolved) return; resolved = true;       /*  [Promises/A+ 2.3.3.3.3]  */
-            if (y === x)                                 /*  [Promises/A+ 3.6]  */
-              promise.reject(new TypeError("circular thenable chain"));
-            else
-              resolve(promise, y);
-          },
-
-          /*  rejectPromise  */                            /*  [Promises/A+ 2.3.3.3.2]  */
-          function (r) {
-            if (resolved) return; resolved = true;       /*  [Promises/A+ 2.3.3.3.3]  */
-            promise.reject(r);
-          }
-        );
-      }
-      catch (e) {
-        if (!resolved)                                       /*  [Promises/A+ 2.3.3.3.3]  */
-          promise.reject(e);                               /*  [Promises/A+ 2.3.3.3.4]  */
-      }
-      return;
-    }
-
-    /*  handle other values  */
-    promise.fulfill(x);                                          /*  [Promises/A+ 2.3.4, 2.3.3.4]  */
-  };
-
-  // use native promises where possible
-  $$.Promise = typeof Promise === 'undefined' ? api : Promise;
-
-  // so we always have Promise.all()
-  $$.Promise.all = $$.Promise.all || function( ps ){
-    return new $$.Promise(function( resolveAll, rejectAll ){
-      var vals = new Array( ps.length );
-      var doneCount = 0;
-
-      var fulfill = function( i, val ){
-        vals[i] = val;
-        doneCount++;
-
-        if( doneCount === ps.length ){
-          resolveAll( vals );
-        }
-      };
-
-      for( var i = 0; i < ps.length; i++ ){
-        (function( i ){
-          var p = ps[i];
-          var isPromise = p.then != null;
-
-          if( isPromise ){
-            p.then(function( val ){
-              fulfill( i, val );
-            }, function( err ){
-              rejectAll( err );
-            });
-          } else {
-            var val = p;
-            fulfill( i, val );
-          }
-        })( i );
-      }
-
-    });
-  };
-
-})( cytoscape );
 // type testing utility functions
 
 ;(function($$, window){ 'use strict';
-
-  var typeofstr = typeof '';
-  var typeofobj = typeof {};
-  var typeoffn = typeof function(){};
 
   $$.is = {
     defined: function(obj){
@@ -300,11 +86,11 @@ var cytoscape;
     },
 
     string: function(obj){
-      return obj != null && typeof obj == typeofstr;
+      return obj != null && typeof obj == typeof '';
     },
     
     fn: function(obj){
-      return obj != null && typeof obj === typeoffn;
+      return obj != null && typeof obj === typeof function(){};
     },
     
     array: function(obj){
@@ -312,11 +98,7 @@ var cytoscape;
     },
     
     plainObject: function(obj){
-      return obj != null && typeof obj === typeofobj && !$$.is.array(obj) && obj.constructor === Object;
-    },
-
-    object: function(obj){
-      return obj != null && typeof obj === typeofobj;
+      return obj != null && typeof obj === typeof {} && !$$.is.array(obj) && obj.constructor === Object;
     },
     
     number: function(obj){
@@ -391,55 +173,15 @@ var cytoscape;
       }
     },
 
+    touch: function(){
+      return window && ( ('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch );
+    },
+
     boundingBox: function(obj){
       return $$.is.plainObject(obj) && 
         $$.is.number(obj.x1) && $$.is.number(obj.x2) &&
         $$.is.number(obj.y1) && $$.is.number(obj.y2)
       ;
-    },
-
-    touch: function(){
-      return window && ( ('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch );
-    },
-
-    gecko: function(){
-      return typeof InstallTrigger !== 'undefined' || ('MozAppearance' in document.documentElement.style);
-    },
-
-    webkit: function(){
-      return typeof webkitURL !== 'undefined' || ('WebkitAppearance' in document.documentElement.style);
-    },
-
-    chromium: function(){
-      return typeof chrome !== 'undefined';
-    },
-
-    khtml: function(){
-      return navigator.vendor.match(/kde/i); // TODO probably a better way to detect this...
-    },
-
-    khtmlEtc: function(){
-      return $$.is.khtml() || $$.is.webkit() || $$.is.blink();
-    },
-
-    trident: function(){
-       return typeof ActiveXObject !== 'undefined' || /*@cc_on!@*/false;
-    },
-
-    windows: function(){
-      return typeof navigator !== 'undefined' && navigator.appVersion.match(/Win/i);
-    },
-
-    mac: function(){
-      return typeof navigator !== 'undefined' && navigator.appVersion.match(/Mac/i);
-    },
-
-    linux: function(){
-      return typeof navigator !== 'undefined' && navigator.appVersion.match(/Linux/i);
-    },
-
-    unix: function(){
-      return typeof navigator !== 'undefined' && navigator.appVersion.match(/X11/i);
     }
   };  
   
@@ -3068,7 +2810,8 @@ var cytoscape;
 
       // Events bubbling up the document may have been marked as prevented
       // by a handler lower down the tree; reflect the correct value.
-      this.isDefaultPrevented = ( src.defaultPrevented ) ? returnTrue : returnFalse;
+      this.isDefaultPrevented = ( src.defaultPrevented || 
+        src.getPreventDefault && src.getPreventDefault() ) ? returnTrue : returnFalse;
 
     // Event type
     } else {
@@ -3088,7 +2831,6 @@ var cytoscape;
       this.namespace = props.namespace;
       this.layout = props.layout;
       this.data = props.data;
-      this.message = props.message;
     }
 
     // Create a timestamp if incoming event doesn't have one
@@ -3403,10 +3145,7 @@ var cytoscape;
               };
 
               for( var j = 0; j < all.length; j++ ){
-                var _p = all[j]._private;
-
-                _p.listeners = _p.listeners || [];
-                _p.listeners.push( listener );
+                all[j]._private.listeners.push( listener );
               }
             }
           } // for events array
@@ -3465,7 +3204,7 @@ var cytoscape;
               var namespace = match[2] ? match[2] : undefined;
 
               for( var i = 0; i < all.length; i++ ){ //
-                var listeners = all[i]._private.listeners = all[i]._private.listeners || [];
+                var listeners = all[i]._private.listeners;
 
                 for( var j = 0; j < listeners.length; j++ ){
                   var listener = listeners[j];
@@ -3501,8 +3240,8 @@ var cytoscape;
         var eventsIsString = $$.is.string(events);
         var eventsIsObject = $$.is.plainObject(events);
         var eventsIsEvent = $$.is.event(events);
-        var cy = this._private.cy || ( $$.is.core(this) ? this : null );
-        var hasCompounds = cy ? cy.hasCompoundNodes() : false;
+        var cy = this._private.cy || this;
+        var hasCompounds = cy.hasCompoundNodes();
 
         if( eventsIsString ){ // then make a plain event object for each event name
           var evts = events.split(/\s+/);
@@ -3540,7 +3279,7 @@ var cytoscape;
           
           for( var j = 0; j < all.length; j++ ){ // for each
             var triggerer = all[j];
-            var listeners = triggerer._private.listeners = triggerer._private.listeners || [];
+            var listeners = triggerer._private.listeners;
             var triggererIsElement = $$.is.element(triggerer);
             var bubbleUp = triggererIsElement || params.layout;
 
@@ -3804,7 +3543,7 @@ var cytoscape;
         // override pan w/ center if set
         var center = properties.center || properties.centre;
         if( center && isCore ){
-          var centerPan = cy.getCenterPan( center.eles, properties.zoom );
+          var centerPan = cy.getCenterPan( center.eles );
 
           if( centerPan ){
             properties.pan = centerPan;
@@ -5058,7 +4797,6 @@ var cytoscape;
           'background-color': '#888',
           'background-opacity': 1,
           'background-image': 'none',
-          'background-image-opacity': 1,
           'background-position-x': '50%',
           'background-position-y': '50%',
           'background-repeat': 'no-repeat',
@@ -5252,8 +4990,6 @@ var cytoscape;
       ( data = new RegExp( $$.style.types.data.regex ).exec( value ) ) ||
       ( layoutData = new RegExp( $$.style.types.layoutData.regex ).exec( value ) )
     ){
-      if( propIsBypass ){ return false; } // mappers not allowed in bypass
-      
       var isLayout = layoutData !== undefined;
       data = data || layoutData;
 
@@ -5263,16 +4999,13 @@ var cytoscape;
         strValue: '' + value,
         mapped: isLayout ? $$.style.types.layoutData : $$.style.types.data,
         field: data[1],
-        bypass: propIsBypass,
-        hasPie: name.match(/pie-(\d+)-background-size/)
+        bypass: propIsBypass
       };
 
     } else if(
       ( mapData = new RegExp( $$.style.types.mapData.regex ).exec( value ) ) ||
       ( mapLayoutData = new RegExp( $$.style.types.mapLayoutData.regex ).exec( value ) )
     ){
-      if( propIsBypass ){ return false; } // mappers not allowed in bypass
-
       var isLayout = mapLayoutData !== undefined;
       mapData = mapData || mapLayoutData;
 
@@ -5319,8 +5052,7 @@ var cytoscape;
         fieldMax: parseFloat( mapData[3] ),
         valueMin: valueMin.value,
         valueMax: valueMax.value,
-        bypass: propIsBypass,
-        hasPie: name.match(/pie-(\d+)-background-size/)
+        bypass: propIsBypass
       };
     }
 
@@ -5513,7 +5245,6 @@ var cytoscape;
     this[i] = {
       selector: selector,
       properties: [],
-      mappedProperties: [],
       index: i
     };
 
@@ -5567,10 +5298,6 @@ var cytoscape;
 
       if( property.hasPie ){
         this._private.hasPie = true;
-      }
-
-      if( property.mapped ){
-        this[i].mappedProperties.push( property );
       }
 
       // add to core style if necessary
@@ -5630,19 +5357,9 @@ var cytoscape;
       var oldHasCxt = oldCxtKey[i] === 't';
       var newHasCxt = newCxtKey[i] === 't';
       var cxtHasDiffed = oldHasCxt !== newHasCxt;
-      var cxtHasMappedProps = cxt.mappedProperties.length > 0;
 
-      if( cxtHasDiffed || cxtHasMappedProps ){
-        var props;
-
-        if( cxtHasDiffed && cxtHasMappedProps ){
-          props = cxt.properties; // suffices b/c mappedProperties is a subset of properties
-        } else if( cxtHasDiffed ){
-          props = cxt.properties; // need to check them all
-        } else if( cxtHasMappedProps ){
-          props = cxt.mappedProperties; // only need to check mapped
-        }
-
+      if( cxtHasDiffed ){
+        var props = cxt.properties;
         for( var j = 0; j < props.length; j++ ){
           var prop = props[j];
           var name = prop.name;
@@ -5666,10 +5383,9 @@ var cytoscape;
             addedProp[name] = true;
             diffProps.push( name );
           }
-        } // for props
-      } // if
-
-    } // for contexts
+        }
+      }
+    }
 
     cache[ dualCxtKey ] = diffProps;
     return diffProps;
@@ -5876,10 +5592,6 @@ var cytoscape;
       }
     }
 
-    var printMappingErr = function(){
-      $$.util.error('Do not assign mappings to elements without corresponding data (e.g. ele `'+ ele.id() +'` for property `'+ prop.name +'` with data field `'+ prop.field +'`); try a `['+ prop.field +']` selector to limit scope to elements with `'+ prop.field +'` defined');
-    };
-
     // put the property in the style objects
     switch( prop.mapped ){ // flatten the property if mapped
     case $$.style.types.mapData:
@@ -5945,7 +5657,6 @@ var cytoscape;
         flatProp = this.parse( prop.name, origProp.strValue, prop.bypass, true );
       } 
 
-      if( !flatProp ){ printMappingErr(); }
       flatProp.mapping = prop; // keep a reference to the mapping
       prop = flatProp; // the flattened (mapped) property is the one we want
 
@@ -5973,7 +5684,6 @@ var cytoscape;
         flatProp = this.parse( prop.name, flatPropVal, prop.bypass, true );
       }
 
-      if( !flatProp ){ printMappingErr(); }
       flatProp.mapping = prop; // keep a reference to the mapping
       prop = flatProp; // the flattened (mapped) property is the one we want
       break;
@@ -6521,7 +6231,7 @@ var cytoscape;
       // parse the selector
       var selectorStr = selAndBlock[1];
       var selector = new $$.Selector( selectorStr );
-      if( selector._private.invalid && selectorStr !== 'core' ){
+      if( selector._private.invalid ){
         $$.util.error('Skipping parsing of block: Invalid selector found in string stylesheet: ' + selectorStr);
 
         // skip this selector and block
@@ -6696,164 +6406,6 @@ var cytoscape;
   };
 
 })( cytoscape );
-// cross-env worker
-// NB : uses (heavyweight) processes on nodejs so best not to create too many workers
-
-;(function($$, window){ 'use strict';
-
-  $$.Worker = function( fn ){
-    if( !(this instanceof $$.Worker) ){
-      return new $$.Worker( fn );
-    }
-
-    var _p = this._private = {
-      requires: []
-    };
-
-    if( fn ){
-      this.run( fn );
-    }
-
-  };  
-
-  $$.worker = $$.Worker;
-  $$.wkrfn = $$.Worker.prototype; // short alias
-
-  $$.fn.worker = function( fnMap, options ){
-    for( var name in fnMap ){
-      var fn = fnMap[name];
-      $$.Worker.prototype[ name ] = fn;
-    }
-  };
-
-  $$.fn.worker({
-
-    require: function( fn ){
-      this._private.requires.push( fn );
-
-      return this; // chaining
-    },
-
-    run: function( fn ){ // fn used like main()
-      var self = this;
-      var _p = this._private;
-
-      if( _p.ran ){
-        return new $$.Promise(function( resolve, reject ){
-          reject('This worker has already been run!');
-        });
-      }
-
-      _p.ran = true;
-      _p.running = true;
-
-      self.trigger('run');
-
-      return new $$.Promise(function( resolve, reject ){
-
-        // worker code to exec
-        var fnStr = _p.requires.map(function( r ){
-          return r.toString() + '\n';
-        }).concat([ '(' + fn.toString() + ')();\n' ]).join('\n');
-
-        if( window ){
-          // add normalised worker api functions
-          fnStr += 'function message(m){ postMessage(m); };\n';
-          fnStr += 'function listen(fn){ self.addEventListener("message", function(m){  if( typeof m === "object" && (m.$$eval || m.data === "$$start") ){} else { fn(m.data); } });  };\n'; 
-          fnStr += 'function resolve(v){ postMessage({ $$resolve: v }); };\n'; 
-
-          // create webworker and let it exec the serialised code
-          var fnBlob = new Blob([ fnStr ]);
-          var fnUrl = window.URL.createObjectURL( fnBlob );
-          var ww = _p.webworker = new Worker( fnUrl );
-
-          // worker messages => events
-          ww.addEventListener('message', function( m ){
-            if( $$.is.object(m) && $$.is.object( m.data ) && ('$$resolve' in m.data) ){
-              resolve( m.data.$$resolve );
-            } else {
-              self.trigger( new $$.Event(m, { type: 'message', message: m.data }) );
-            }
-          }, false);
-
-          ww.postMessage('$$start'); // start
-
-        } else if( typeof module !== 'undefined' ){
-          // create a new process
-          var path = require('path');
-          var child_process = require('child_process');
-          var child = _p.child = child_process.fork( path.join(__dirname, 'worker-node-fork') );
-
-          // child process messages => events
-          child.on('message', function( m ){
-            if( $$.is.object(m) && ('$$resolve' in m) ){
-              resolve( m.$$resolve );
-            } else {
-              self.trigger( new $$.Event({}, { type: 'message', message: m }) );
-            }
-          });
-
-          // ask the child process to eval the worker code
-          child.send({
-            $$eval: fnStr
-          });
-        } else {
-          $$.error('Tried to create worker but no underlying tech found');
-        }
-
-      }).then(function( v ){
-        _p.running = false;
-
-        return v;
-      });
-    
-    },
-
-    // send the worker a message
-    message: function( m ){
-      var _p = this._private;
-
-      if( _p.webworker ){
-        _p.webworker.postMessage( m );
-      }
-
-      if( _p.child ){
-        _p.child.send( m );
-      } 
-
-      return this; // chaining
-    },
-
-    stop: function(){
-      var _p = this._private;
-
-      // TODO may need to allow stop always
-      //if( !_p.running ){ return; } // can stop only if running
-
-      if( _p.webworker ){
-        _p.webworker.terminate();
-      }
-
-      if( _p.child ){
-        _p.child.kill();
-      } 
-
-      return this.trigger('stop'); // chaining
-    }
-
-  });
-
-  // pull in event apis
-  $$.fn.worker({
-    on: $$.define.on(),
-    one: $$.define.on({ unbindSelfOnTrigger: true }),
-    once: $$.define.on({ unbindAllBindersOnTrigger: true }),
-    off: $$.define.off(), 
-    trigger: $$.define.trigger()
-  });
-  
-})( cytoscape, typeof window === 'undefined' ? null : window );
-
 ;(function($$, window){ 'use strict';
 
   var isTouch = $$.is.touch();
@@ -6991,8 +6543,7 @@ var cytoscape;
       textureOnViewport: options.textureOnViewport,
       wheelSensitivity: $$.is.number(options.wheelSensitivity) && options.wheelSensitivity > 0 ? options.wheelSensitivity : 1,
       motionBlur: options.motionBlur,
-      pixelRatio: $$.is.number(options.pixelRatio) && options.pixelRatio > 0 ? options.pixelRatio : (options.pixelRatio === 'auto' ? undefined : 1),
-      tapThreshold: $$.is.touch() ? 8 : 4
+      pixelRatio: $$.is.number(options.pixelRatio) && options.pixelRatio > 0 ? options.pixelRatio : undefined
     }, options.renderer) );
 
     // trigger the passed function for the `initrender` event
@@ -8473,7 +8024,7 @@ var cytoscape;
       return this; // chaining
     },
 
-    getCenterPan: function( elements, zoom ){
+    getCenterPan: function( elements ){
       if( !this._private.panningEnabled ){
         return;
       }
@@ -8488,7 +8039,7 @@ var cytoscape;
       var bb = elements.boundingBox();
       var w = this.width();
       var h = this.height();
-      zoom = zoom === undefined ? this._private.zoom : zoom;
+      var zoom = this._private.zoom;
 
       var pan = { // middle
         x: (w - zoom*( bb.x1 + bb.x2 ))/2,
@@ -8569,7 +8120,7 @@ var cytoscape;
 
   // backwards compatibility
   $$.corefn.autolockNodes = $$.corefn.autolock;
-  $$.corefn.autoungrabifyNodes = $$.corefn.autoungrabify;
+  $$.corefn.autoungrabifyNodes = $$.corefn.autoungrabifyNodes;
 
 })( cytoscape );
 
@@ -8853,9 +8404,7 @@ var cytoscape;
     
     var classes = [];
     for( var cls in p.classes ){
-      if( p.classes[cls] ){
-        classes.push(cls);
-      }
+      classes.push(cls);
     }
     
     for( var i = 0; i < classes.length; i++ ){
@@ -9227,8 +8776,8 @@ var cytoscape;
     if( struct.source !== undefined || struct.target !== undefined ){
       var srcId = struct.source;
       var tgtId = struct.target;
-      var srcExists = cy.getElementById( srcId ).length > 0;
-      var tgtExists = cy.getElementById( tgtId ).length > 0;
+      var srcExists = cy.getElementById(srcId).length > 0;
+      var tgtExists = cy.getElementById(tgtId).length > 0;
 
       if( srcExists || tgtExists ){
         var jsons = this.jsons();
@@ -9249,14 +8798,12 @@ var cytoscape;
  
     } else if( struct.parent !== undefined ){ // move node to new parent
       var parentId = struct.parent;
-      var parentExists = parentId === null || cy.getElementById( parentId ).length > 0;
+      var parentExists = struct.parent === null || cy.getElementById( parentId ).length > 0;
     
       if( parentExists ){
         var jsons = this.jsons();
-        var descs = this.descendants();
-        var descsEtc = descs.merge( descs.add(this).connectedEdges() );
 
-        this.remove(); // NB: also removes descendants and their connected edges
+        this.remove();
 
         for( var i = 0; i < this.length; i++ ){
           var json = jsons[i];
@@ -9267,7 +8814,7 @@ var cytoscape;
         }
       }
 
-      return cy.add( jsons ).merge( descsEtc.restore() );
+      return cy.add( jsons );
     }
 
     return this; // if nothing done
@@ -12428,16 +11975,19 @@ var cytoscape;
             node.silentPosition({ x: 0, y: 0 });
           }
 
+          layout.one('layoutready', options.ready);
+          layout.trigger({ type: 'layoutready', layout: layout });
+
           node.animate({
             position: newPos
           }, {
             duration: options.animationDuration,
-            step: !lastNode ? undefined : function(){
+            step: lastNode ? undefined : function(){
               if( options.fit ){
                 cy.fit( options.padding );
               } 
             },
-            complete: !lastNode ? undefined : function(){
+            complete: lastNode ? undefined : function(){
               if( options.zoom != null ){
                 cy.zoom( options.zoom );
               }
@@ -12455,9 +12005,6 @@ var cytoscape;
             }
           });
         }
-
-        layout.one('layoutready', options.ready);
-        layout.trigger({ type: 'layoutready', layout: layout });
       } else {
         nodes.positions( fn );
 
@@ -13718,19 +13265,14 @@ var cytoscape;
 
 (function($$) { 'use strict';
 
-  CanvasRenderer.CANVAS_LAYERS = 3;
-  //
-  CanvasRenderer.SELECT_BOX = 0;
-  CanvasRenderer.DRAG = 1;
-  CanvasRenderer.NODE = 2;
-
-  CanvasRenderer.BUFFER_COUNT = 3;
-  //
-  CanvasRenderer.TEXTURE_BUFFER = 0;
-  CanvasRenderer.MOTIONBLUR_BUFFER_NODE = 1;
-  CanvasRenderer.MOTIONBLUR_BUFFER_DRAG = 2;
-
-  function CanvasRenderer(options) {  
+  function CanvasRenderer(options) {
+    
+    CanvasRenderer.CANVAS_LAYERS = 5;
+    CanvasRenderer.SELECT_BOX = 0;
+    CanvasRenderer.DRAG = 2;
+    CanvasRenderer.NODE = 4;
+    CanvasRenderer.TEXTURE_BUFFER = 0;
+    CanvasRenderer.BUFFER_COUNT = 2;
 
     this.options = options;
 
@@ -13816,13 +13358,9 @@ var cytoscape;
     this.hideLabelsOnViewport = options.hideLabelsOnViewport;
     this.textureOnViewport = options.textureOnViewport;
     this.wheelSensitivity = options.wheelSensitivity;
-    this.motionBlurEnabled = options.motionBlur === undefined ? true : options.motionBlur; // on by default
+    this.motionBlurEnabled = options.motionBlur;
     this.forcedPixelRatio = options.pixelRatio;
     this.motionBlur = true; // for initial kick off
-    this.motionBlurPxRatio = 0.666;
-    this.clearedForMotionBlur = [];
-    this.tapThreshold = options.tapThreshold;
-    this.tapThreshold2 = options.tapThreshold * options.tapThreshold;
 
     this.load();
   }
@@ -13890,10 +13428,6 @@ var cytoscape;
       var b = binding;
 
       b.target.removeEventListener(b.event, b.handler, b.useCapture);
-    }
-
-    if( this.removeObserver ){
-      this.removeObserver.disconnect();
     }
   };
 
@@ -15037,12 +14571,11 @@ var cytoscape;
     ds.top = '-9999px';
     ds.zIndex = '-1';
     ds.visibility = 'hidden';
-    ds.pointerEvents = 'none';
     ds.padding = '0';
     ds.lineHeight = '1';
 
     // put label content in div
-    div.textContent = text;
+    div.innerText = text;
 
     cache[cacheKey] = {
       width: div.clientWidth,
@@ -15808,7 +15341,7 @@ var cytoscape;
     var usePaths = CanvasRenderer.usePaths();
 
     // if bezier ctrl pts can not be calculated, then die
-    if( rs.badBezier || ( (rs.edgeType === 'bezier' || rs.edgeType === 'straight') && isNaN(rs.startX)) ){ // extra isNaN() for safari 7.1 b/c it mangles ctrlpt calcs
+    if( rs.badBezier ){
       return;
     }
 
@@ -15970,20 +15503,18 @@ var cytoscape;
 
     }
 
-    if( canvasCxt.setLineDash ){ // for very outofdate browsers
-      switch( type ){
-        case 'dotted':
-          canvasCxt.setLineDash([ 1, 1 ]);
-          break;
+    switch( type ){
+      case 'dotted':
+        canvasCxt.setLineDash([ 1, 1 ]);
+        break;
 
-        case 'dashed':
-          canvasCxt.setLineDash([ 6, 3 ]);
-          break;
+      case 'dashed':
+        canvasCxt.setLineDash([ 6, 3 ]);
+        break;
 
-        case 'solid':
-          canvasCxt.setLineDash([ ]);
-          break;
-      }
+      case 'solid':
+        canvasCxt.setLineDash([ ]);
+        break;
     }
 
     if( !pathCacheHit ){
@@ -16008,9 +15539,7 @@ var cytoscape;
     }
   
     // reset any line dashes
-    if( context.setLineDash ){ // for very outofdate browsers
-      context.setLineDash([ ]);
-    }
+    context.setLineDash([ ]);
 
   };
 
@@ -16436,7 +15965,6 @@ var cytoscape;
     var labelFamily = style['font-family'].strValue;
     var labelWeight = style['font-weight'].strValue;
     var opacity = style['text-opacity'].value * style['opacity'].value * parentOpacity;
-    var outlineOpacity = style['text-outline-opacity'].value * opacity;
     var color = style['color'].value;
     var outlineColor = style['text-outline-color'].value;
 
@@ -16466,7 +15994,7 @@ var cytoscape;
 
     this.fillStyle(context, color[0], color[1], color[2], opacity);
     
-    this.strokeStyle(context, outlineColor[0], outlineColor[1], outlineColor[2], outlineOpacity);
+    this.strokeStyle(context, outlineColor[0], outlineColor[1], outlineColor[2], opacity);
 
     return text;
   };
@@ -16540,21 +16068,19 @@ var cytoscape;
 
       context.lineJoin = 'miter'; // so borders are square with the node shape
 
-      if( context.setLineDash ){ // for very outofdate browsers
-        switch( borderStyle ){
-          case 'dotted':
-            context.setLineDash([ 1, 1 ]);
-            break;
+      switch( borderStyle ){
+        case 'dotted':
+          context.setLineDash([ 1, 1 ]);
+          break;
 
-          case 'dashed':
-            context.setLineDash([ 4, 2 ]);
-            break;
+        case 'dashed':
+          context.setLineDash([ 4, 2 ]);
+          break;
 
-          case 'solid':
-          case 'double':
-            context.setLineDash([ ]);
-            break;
-        }
+        case 'solid':
+        case 'double':
+          context.setLineDash([ ]);
+          break;
       }
 
       //var image = this.getCachedImage('url');
@@ -16694,9 +16220,7 @@ var cytoscape;
       }
 
       // reset in case we changed the border style
-      if( context.setLineDash ){ // for very outofdate browsers
-        context.setLineDash([ ]);
-      }
+      context.setLineDash([ ]);
 
     // draw the overlay
     } else {
@@ -16784,7 +16308,6 @@ var cytoscape;
 ;(function($$){ 'use strict';
 
   var CanvasRenderer = $$('renderer', 'canvas');
-  var CR = CanvasRenderer;
 
   // var isFirefox = typeof InstallTrigger !== 'undefined';
 
@@ -16869,14 +16392,6 @@ var cytoscape;
     var width = container.clientWidth;
     var height = container.clientHeight;
     var pixelRatio = this.getPixelRatio();
-
-    if(
-      container === this.data.bufferCanvases[CR.MOTIONBLUR_BUFFER_NODE] ||
-      container === this.data.bufferCanvases[CR.MOTIONBLUR_BUFFER_DRAG]
-    ){
-      pixelRatio = this.motionBlurPxRatio;
-    }
-
     var canvasWidth = width * pixelRatio;
     var canvasHeight = height * pixelRatio;
     var canvas;
@@ -16991,7 +16506,7 @@ var cytoscape;
 
     if( this.lastDrawTime === undefined ){ this.lastDrawTime = 0; }
 
-    var nowTime = Date.now();
+    var nowTime = +new Date();
     var timeElapsed = nowTime - this.lastDrawTime;
     var callAfterLimit = timeElapsed >= redrawLimit;
 
@@ -17010,18 +16525,15 @@ var cytoscape;
       this.currentlyDrawing = true;
     }
 
-    
 
-
-    var startTime = Date.now();
+    var startTime = +new Date();
 
     //console.log('-- redraw --')
 
 
     function drawToContext(){ 
-      // startTime = Date.now();
+      // startTime = +new Date();
       // console.profile('draw' + startTime)
-
       var edges = r.getCachedEdges();
       var coreStyle = cy.style()._private.coreStyle;
       
@@ -17057,49 +16569,29 @@ var cytoscape;
       };
 
       function setContextTransform(context, clear){
-        var ePan, eZoom, w, h;
-
-        if( context === data.bufferContexts[CR.MOTIONBLUR_BUFFER_NODE] || context === data.bufferContexts[CR.MOTIONBLUR_BUFFER_DRAG] ){
-          ePan = {
-            x: pan.x * r.motionBlurPxRatio,
-            y: pan.y * r.motionBlurPxRatio
-          };
-
-          eZoom = zoom * r.motionBlurPxRatio;
-
-          w = r.canvasWidth * r.motionBlurPxRatio;
-          h = r.canvasHeight * r.motionBlurPxRatio;
-        } else {
-          ePan = effectivePan;
-          eZoom = effectiveZoom;
-
-          w = r.canvasWidth;
-          h = r.canvasHeight;
-        }
-
         context.setTransform(1, 0, 0, 1, 0, 0);
 
-        if( clear === 'motionBlur' ){ 
+        if( clear === 'motionBlur' ){
           var gco = context.globalCompositeOperation;
 
           context.globalCompositeOperation = 'destination-out';
           r.fillStyle( context, 255, 255, 255, 0.666 );
-          context.fillRect(0, 0, w, h);
+          context.fillRect(0, 0, r.canvasWidth, r.canvasHeight);
 
           context.globalCompositeOperation = gco;
         } else if( !forcedContext && (clear === undefined || clear) ){
-          context.clearRect(0, 0, w, h);
+          context.clearRect(0, 0, r.canvasWidth, r.canvasHeight);
         }
         
         if( !drawAllLayers ){
-          context.translate( ePan.x, ePan.y );
-          context.scale( eZoom, eZoom );
+          context.translate(effectivePan.x, effectivePan.y);
+          context.scale(effectiveZoom, effectiveZoom);
         }
         if( forcedPan ){
-          context.translate( forcedPan.x, forcedPan.y );
+          context.translate(forcedPan.x, forcedPan.y);
         } 
         if( forcedZoom ){
-          context.scale( forcedZoom, forcedZoom );
+          context.scale(forcedZoom, forcedZoom);
         }
       }
 
@@ -17140,11 +16632,12 @@ var cytoscape;
           };
         }
 
-        needDraw[CR.DRAG] = false;
-        needDraw[CR.NODE] = false;
+        needDraw[CanvasRenderer.DRAG] = false;
+        needDraw[CanvasRenderer.NODE] = false;
 
-        var context = data.contexts[CR.NODE];
+        var context = data.contexts[CanvasRenderer.NODE];
 
+        var texture = r.textureCache.texture;
         var texture = r.textureCache.texture;
         var vp = r.textureCache.viewport;
         bb = r.textureCache.bb;
@@ -17172,7 +16665,7 @@ var cytoscape;
       var hideEdges = r.hideEdgesOnViewport && vpManip;
       var hideLabels = r.hideLabelsOnViewport && vpManip;
 
-      if (needDraw[CR.DRAG] || needDraw[CR.NODE] || drawAllLayers || drawOnlyNodeLayer) {
+      if (needDraw[CanvasRenderer.DRAG] || needDraw[CanvasRenderer.NODE] || drawAllLayers || drawOnlyNodeLayer) {
         //NB : VERY EXPENSIVE
 
         if( hideEdges ){ 
@@ -17186,8 +16679,8 @@ var cytoscape;
         for (var i = 0; i < zEles.length; i++) {
           var ele = zEles[i];
           var list;
-          var bb = forcedContext ? null : ele.boundingBox();
-          var insideExtent = forcedContext ? true : $$.math.boundingBoxesIntersect( extent, bb );
+          var bb = ele.boundingBox();
+          var insideExtent = $$.math.boundingBoxesIntersect( extent, bb );
 
           if( !insideExtent ){ continue; } // no need to render
 
@@ -17232,64 +16725,38 @@ var cytoscape;
 
       }
 
-      var needMbClear = [];
+      var nodeLayerNeedsMotionClear = needDraw[CanvasRenderer.DRAG] && !needDraw[CanvasRenderer.NODE] && motionBlur && !r.clearedNodeLayerForMotionBlur;
+      if( nodeLayerNeedsMotionClear ){ r.clearedNodeLayerForMotionBlur = true; }
 
-      needMbClear[CR.NODE] = !needDraw[CR.NODE] && motionBlur && !r.clearedForMotionBlur[CR.NODE];
-      if( needMbClear[CR.NODE] ){ r.clearedForMotionBlur[CR.NODE] = true; }
+      if( needDraw[CanvasRenderer.NODE] || drawAllLayers || drawOnlyNodeLayer || nodeLayerNeedsMotionClear ){
+        // console.log('redrawing node layer');
+        
+        var context = forcedContext || data.contexts[CanvasRenderer.NODE];
 
-      // console.log('--');
-
-      if( needDraw[CR.DRAG] && motionBlur && needMbClear[CR.NODE] ){
-        // console.log('NODE blurclean');
-
-        var context = forcedContext || data.contexts[CR.NODE];
-
-        setContextTransform( context );
-        drawElements(eles.nondrag, context);
-
-        if( !drawAllLayers ){
-          needDraw[CR.NODE] = false; 
-          needMbClear[CR.NODE] = false;
-        }
-
-      } else if( needDraw[CR.NODE] || drawAllLayers || drawOnlyNodeLayer || needMbClear[CR.NODE] ){
-        // console.log('NODE');
-
-        var context = forcedContext || ( motionBlur && !needMbClear[CR.NODE] ? r.data.bufferContexts[ CR.MOTIONBLUR_BUFFER_NODE ] : data.contexts[CR.NODE] );
-
-        setContextTransform( context ); //, motionBlur && !needMbClear[CR.NODE] ? 'motionBlur' : undefined );
+        setContextTransform( context, motionBlur && !nodeLayerNeedsMotionClear ? 'motionBlur' : undefined );
         drawElements(eles.nondrag, context);
         
-        if( !drawAllLayers && !motionBlur ){
-          needDraw[CR.NODE] = false; 
+        if( !drawAllLayers ){
+          needDraw[CanvasRenderer.NODE] = false; 
         }
       }
       
-      needMbClear[CR.DRAG] = !needDraw[CR.DRAG] && motionBlur && !r.clearedForMotionBlur[CR.DRAG];
-      if( needMbClear[CR.DRAG] ){ r.clearedForMotionBlur[CR.DRAG] = true; }
-
-      if ( !drawOnlyNodeLayer && (needDraw[CR.DRAG] || drawAllLayers) ) {
-        // console.log('DRAG');
-
-        var context = forcedContext || ( motionBlur && !needMbClear[CR.DRAG] ? r.data.bufferContexts[ CR.MOTIONBLUR_BUFFER_DRAG ] : data.contexts[CR.DRAG] );
+      if ( !drawOnlyNodeLayer && (needDraw[CanvasRenderer.DRAG] || drawAllLayers) ) {
         
-        setContextTransform( context ); //, motionBlur && !needMbClear[CR.NODE] ? 'motionBlur' : undefined );
+        var context = forcedContext || data.contexts[CanvasRenderer.DRAG];
+        
+        setContextTransform( context, motionBlur ? 'motionBlur' : undefined );
         drawElements(eles.drag, context);
         
-        if( !drawAllLayers && !motionBlur ){
-          needDraw[CR.DRAG] = false;
-        }
-
-        if( !r.clearedForMotionBlur[CR.NODE] ){
-          needDraw[CR.NODE] = true;
-          needMbClear[CR.NODE] = true;
+        if( !drawAllLayers ){
+          needDraw[CanvasRenderer.DRAG] = false;
         }
       }
       
-      if( r.showFps || (!drawOnlyNodeLayer && (needDraw[CR.SELECT_BOX] && !drawAllLayers)) ) {
+      if( r.showFps || (!drawOnlyNodeLayer && (needDraw[CanvasRenderer.SELECT_BOX] && !drawAllLayers)) ) {
         // console.log('redrawing selection box');
         
-        var context = forcedContext || data.contexts[CR.SELECT_BOX];
+        var context = forcedContext || data.contexts[CanvasRenderer.SELECT_BOX];
 
         setContextTransform( context );
 
@@ -17347,7 +16814,7 @@ var cytoscape;
 
           context.setTransform(1, 0, 0, 1, 0, 0);
 
-          //context.font = '20px helvetica';
+          context.font = '20px helvetica';
           context.fillStyle = 'rgba(255, 0, 0, 0.75)';
           context.strokeStyle = 'rgba(255, 0, 0, 0.75)';
           context.lineWidth = 1;
@@ -17359,55 +16826,12 @@ var cytoscape;
         }
 
         if( !drawAllLayers ){
-          needDraw[CR.SELECT_BOX] = false; 
-        }
-      }
-
-      // motionblur: blit rendered blurry frames
-      if( motionBlur ){
-        var cxtNode = data.contexts[CR.NODE];
-        var txtNode = r.data.bufferCanvases[ CR.MOTIONBLUR_BUFFER_NODE ];
-
-        var cxtDrag = data.contexts[CR.DRAG];
-        var txtDrag = r.data.bufferCanvases[ CR.MOTIONBLUR_BUFFER_DRAG ];
-
-        var drawMotionBlur = function( cxt, txt ){
-          cxt.setTransform(1, 0, 0, 1, 0, 0);
-
-          // trailing frames effect
-          var gco = cxt.globalCompositeOperation;
-          cxt.globalCompositeOperation = 'destination-out';
-          cxt.fillStyle = 'rgba(255, 255, 255, 0.666)';
-          cxt.fillRect(0, 0, r.canvasWidth, r.canvasHeight);
-          cxt.globalCompositeOperation = gco;
-
-          cxt.drawImage( 
-            txt, // img
-            0, 0, // sx, sy
-            r.canvasWidth * r.motionBlurPxRatio, r.canvasHeight * r.motionBlurPxRatio, // sw, sh
-            0, 0, // x, y
-            r.canvasWidth, r.canvasHeight // w, h
-          );
-        }
-
-        if( needDraw[CR.NODE] || needMbClear[CR.NODE] ){
-          // console.log('mb NODE');
-
-          drawMotionBlur( cxtNode, txtNode );
-          needDraw[CR.NODE] = false;
-        }
-
-        if( needDraw[CR.DRAG] || needMbClear[CR.DRAG] ){
-          // console.log('mb DRAG');
-
-          drawMotionBlur( cxtDrag, txtDrag );
-          needDraw[CR.DRAG] = false;
-          //needMbClear[CR.NODE] = true;
+          needDraw[CanvasRenderer.SELECT_BOX] = false; 
         }
       }
 
 
-      var endTime = Date.now();
+      var endTime = +new Date();
 
       if( r.averageRedrawTime === undefined ){
         r.averageRedrawTime = endTime - startTime;
@@ -17443,15 +16867,14 @@ var cytoscape;
       if( motionBlur ){ 
         r.motionBlurTimeout = setTimeout(function(){
           r.motionBlurTimeout = null;
-          // console.log('mb CLEAR');
+          // console.log('motion blur clear');
 
-          r.clearedForMotionBlur[CR.NODE] = false;
-          r.clearedForMotionBlur[CR.DRAG] = false;
+          r.clearedNodeLayerForMotionBlur = false;
           r.motionBlur = false;
           r.clearingMotionBlur = true;
 
-          needDraw[CR.NODE] = true; 
-          needDraw[CR.DRAG] = true; 
+          needDraw[CanvasRenderer.NODE] = true; 
+          needDraw[CanvasRenderer.DRAG] = true; 
 
           r.redraw();
         }, CanvasRenderer.motionBlurDelay);
@@ -17790,31 +17213,9 @@ var cytoscape;
       }
     };
 
-    if( typeof MutationObserver !== 'undefined' ){
-      r.removeObserver = new MutationObserver(function( mutns ){
-        for( var i = 0; i < mutns.length; i++ ){
-          var mutn = mutns[i];
-          var rNodes = mutn.removedNodes;
-
-          if( rNodes ){ for( var j = 0; j < rNodes.length; j++ ){
-            var rNode = rNodes[j];
-
-            if( rNode === r.data.container ){
-              r.destroy();
-              break;
-            }
-          } }
-        }
-      });
-
-      r.removeObserver.observe( r.data.container.parentNode, { childList: true } );
-    } else {
-      r.registerBinding(r.data.container, 'DOMNodeRemoved', function(e){
-        r.destroy();
-      });
-    }
-
-
+    r.registerBinding(r.data.container, 'DOMNodeRemoved', function(e){
+      r.destroy();
+    });
 
     // auto resize
     r.registerBinding(window, 'resize', $$.util.debounce( function(e) {
@@ -17973,23 +17374,11 @@ var cytoscape;
           var timeUntilActive = Math.max( 0, CanvasRenderer.panOrBoxSelectDelay - (+new Date() - r.hoverData.downTime) );
 
           clearTimeout( r.bgActiveTimeout );
+          r.bgActiveTimeout = setTimeout(function(){
+            if( near ){
+              near.unactivate();
+            }
 
-          if( cy.boxSelectionEnabled() || ( near && near.isEdge() ) ){
-            r.bgActiveTimeout = setTimeout(function(){
-              if( near ){
-                near.unactivate();
-              }
-
-              r.data.bgActivePosistion = {
-                x: pos[0],
-                y: pos[1]
-              };
-
-              r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
-      
-              r.redraw();
-            }, timeUntilActive);
-          } else {
             r.data.bgActivePosistion = {
               x: pos[0],
               y: pos[1]
@@ -17997,8 +17386,9 @@ var cytoscape;
 
             r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
     
+
             r.redraw();
-          }
+          }, timeUntilActive);
           
         }
       
@@ -18044,8 +17434,6 @@ var cytoscape;
       }
 
       var cy = r.data.cy;
-      var zoom = cy.zoom();
-      var pan = cy.pan();
       var pos = r.projectIntoViewport(e.clientX, e.clientY);
       var select = r.data.select;
       
@@ -18203,14 +17591,7 @@ var cytoscape;
           r.hoverData.last = near;
         }
         
-        var dx = select[2] - select[0];
-        var dx2 = dx * dx;
-        var dy = select[3] - select[1];
-        var dy2 = dy * dy;
-        var dist2 = dx2 + dy2;
-        var rdist2 = dist2 * zoom * zoom;
-
-        if ( down && down.isNode() && r.nodeIsDraggable(down) && (rdist2 > r.tapThreshold2) ){
+        if ( down && down.isNode() && r.nodeIsDraggable(down) ) {
           if( !r.dragData.didDrag ) {
             r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
           }
@@ -18257,13 +17638,14 @@ var cytoscape;
       }
       
       select[2] = pos[0]; select[3] = pos[1];
+    
       
       if( preventDefault ){ 
         if(e.stopPropagation) e.stopPropagation();
           if(e.preventDefault) e.preventDefault();
           return false;
         }
-    }, 1000/30, { leading: true }), false);
+    }, 1000/30), false);
     
     r.registerBinding(window, 'mouseup', function(e) {
       // console.log('--\nmouseup', e)
@@ -18424,9 +17806,7 @@ var cytoscape;
             
             // console.log('single selection')
 
-            if( r.hoverData.dragging ){
-              // if panning, don't change selection state
-            } else if( cy.selectionType() === 'additive' || shiftDown ){
+            if( cy.selectionType() === 'additive' || shiftDown ){
               if( near.selected() ){
                 near.unselect();
               } else {
@@ -18528,10 +17908,8 @@ var cytoscape;
       r.dragData.didDrag = false;
       
     }, false);
-
+    
     var wheelHandler = function(e) { 
-      if( r.scrollingPage ){ return; } // while scrolling, ignore wheel-to-zoom
-
       var cy = r.data.cy;
       var pos = r.projectIntoViewport(e.clientX, e.clientY);
       var rpos = [pos[0] * cy.zoom() + cy.pan().x,
@@ -18553,14 +17931,9 @@ var cytoscape;
           r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true; 
           r.redraw();
         }, 150);
-
-        var diff = e.deltaY / -250 || e.wheelDeltaY / 1000 || e.wheelDelta / 1000;
+      
+        var diff = e.wheelDeltaY / 1000 || e.wheelDelta / 1000 || e.detail / -32 || -e.deltaY / 500;
         diff = diff * r.wheelSensitivity;
-
-        var needsWheelFix = e.deltaMode === 1;
-        if( needsWheelFix ){ // fixes slow wheel events on ff/linux and ff/windows
-          diff *= 33;
-        }
 
         cy.zoom({
           level: cy.zoom() * Math.pow(10, diff),
@@ -18574,19 +17947,12 @@ var cytoscape;
     // --
     r.registerBinding(r.data.container, 'wheel', wheelHandler, true);
 
-    // disable nonstandard wheel events
-    // r.registerBinding(r.data.container, 'mousewheel', wheelHandler, true);
-    // r.registerBinding(r.data.container, 'DOMMouseScroll', wheelHandler, true);
-    // r.registerBinding(r.data.container, 'MozMousePixelScroll', wheelHandler, true); // older firefox
+    r.registerBinding(r.data.container, 'mousewheel', wheelHandler, true);
+    
+    r.registerBinding(r.data.container, 'DOMMouseScroll', wheelHandler, true);
 
-    r.registerBinding(window, 'scroll', function(e){
-      r.scrollingPage = true;
-
-      clearTimeout( r.scrollingPageTimeout );
-      r.scrollingPageTimeout = setTimeout(function(){
-        r.scrollingPage = false;
-      }, 250);
-    }, true);
+    r.registerBinding(r.data.container, 'MozMousePixelScroll', function(e){
+    }, false);
     
     // Functions to help with handling mouseout/mouseover on the Cytoscape container
           // Handle mouseout on Cytoscape container
@@ -18609,7 +17975,7 @@ var cytoscape;
     }, false);
     
     var f1x1, f1y1, f2x1, f2y1; // starting points for pinch-to-zoom
-    var distance1, distance1Sq; // initial distance between finger 1 and finger 2 for pinch-to-zoom
+    var distance1; // initial distance between finger 1 and finger 2 for pinch-to-zoom
     var center1, modelCenter1; // center point on start pinch to zoom
     var offsetLeft, offsetTop;
     var containerWidth, containerHeight;
@@ -18617,10 +17983,6 @@ var cytoscape;
 
     var distance = function(x1, y1, x2, y2){
       return Math.sqrt( (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1) );
-    };
-
-    var distanceSq = function(x1, y1, x2, y2){
-      return (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1);
     };
 
     r.registerBinding(r.data.container, 'touchstart', function(e) {
@@ -18679,7 +18041,6 @@ var cytoscape;
         var zoom = cy.zoom();
 
         distance1 = distance( f1x1, f1y1, f2x1, f2y1 );
-        distance1Sq = distanceSq( f1x1, f1y1, f2x1, f2y1 );
         center1 = [ (f1x1 + f2x1)/2, (f1y1 + f2y1)/2 ];
         modelCenter1 = [ 
           (center1[0] - pan.x) / zoom,
@@ -18687,9 +18048,7 @@ var cytoscape;
         ];
 
         // consider context tap
-        var cxtDistThreshold = 200;
-        var cxtDistThresholdSq = cxtDistThreshold * cxtDistThreshold;
-        if( distance1Sq < cxtDistThresholdSq && !e.touches[2] ){
+        if( distance1 < 200 && !e.touches[2] ){
 
           var near1 = r.findNearestElement(now[0], now[1], true);
           var near2 = r.findNearestElement(now[2], now[3], true);
@@ -18881,19 +18240,13 @@ var cytoscape;
       if( capture && r.touchData.cxt ){
         var f1x2 = e.touches[0].clientX - offsetLeft, f1y2 = e.touches[0].clientY - offsetTop;
         var f2x2 = e.touches[1].clientX - offsetLeft, f2y2 = e.touches[1].clientY - offsetTop;
-        // var distance2 = distance( f1x2, f1y2, f2x2, f2y2 );
-        var distance2Sq = distanceSq( f1x2, f1y2, f2x2, f2y2 );
-        var factorSq = distance2Sq / distance1Sq;
-
-        var distThreshold = 150;
-        var distThresholdSq = distThreshold * distThreshold;
-        var factorThreshold = 1.5;
-        var factorThresholdSq = factorThreshold * factorThreshold;
+        var distance2 = distance( f1x2, f1y2, f2x2, f2y2 );
+        var factor = distance2 / distance1;
 
         //console.log(factor, distance2)
 
         // cancel ctx gestures if the distance b/t the fingers increases
-        if( factorSq >= factorThresholdSq || distance2Sq >= distThresholdSq ){
+        if( factor >= 1.5 || distance2 >= 150 ){
           r.touchData.cxt = false;
           if( r.touchData.start ){ r.touchData.start.unactivate(); r.touchData.start = null; }
           r.data.bgActivePosistion = undefined;
@@ -19002,8 +18355,6 @@ var cytoscape;
         // console.log( f2x2, f2y2 )
 
         var distance2 = distance( f1x2, f1y2, f2x2, f2y2 );
-        // var distance2Sq = distanceSq( f1x2, f1y2, f2x2, f2y2 );
-        // var factor = Math.sqrt( distance2Sq ) / Math.sqrt( distance1Sq );
         var factor = distance2 / distance1;
 
         // console.log(distance2)
@@ -19241,7 +18592,7 @@ var cytoscape;
       for (var j=0; j<now.length; j++) { earlier[j] = now[j]; }
       //r.redraw();
       
-    }, 1000/30, { leading: true }), false);
+    }, 1000/30), false);
     
     r.registerBinding(window, 'touchcancel', function(e) {
       var start = r.touchData.start;
@@ -19271,7 +18622,6 @@ var cytoscape;
       r.hoverData.draggingEles = false;
       
       var cy = r.data.cy; 
-      var zoom = cy.zoom();
       var now = r.touchData.now;
       var earlier = r.touchData.earlier;
 
@@ -19476,19 +18826,12 @@ var cytoscape;
             ;
           }
         }
-
-        var dx = r.touchData.startPosition[0] - now[0];
-        var dx2 = dx * dx;
-        var dy = r.touchData.startPosition[1] - now[1];
-        var dy2 = dy * dy;
-        var dist2 = dx2 + dy2;
-        var rdist2 = dist2 * zoom * zoom;
         
         // Prepare to select the currently touched node, only if it hasn't been dragged past a certain distance
         if (start != null 
             && !r.dragData.didDrag // didn't drag nodes around
             && start._private.selectable 
-            && rdist2 < r.tapThreshold2 ) {
+            && (Math.sqrt(Math.pow(r.touchData.startPosition[0] - now[0], 2) + Math.pow(r.touchData.startPosition[1] - now[1], 2))) < 6) {
 
           if( cy.selectionType() === 'single' ){
             cy.$(':selected').not( start ).unselect();
@@ -22855,10 +22198,6 @@ var cytoscape;
       if( options.rankSep ){
         d.rankSep( options.rankSep );
       }
-
-      if( options.rankDir ){
-        d.rankDir( options.rankDir );
-      }
         
       d = d.run(g);
 
@@ -23294,401 +22633,6 @@ var cytoscape;
     'random', // the layout name
     RandomLayout // the layout prototype
   );
-  
-})(cytoscape);
-
-;(function($$){
-  
-  /*
-   * This layout combines several algorithms:
-   * 
-   * - It generates an initial position of the nodes by using the
-   *   Fruchterman-Reingold algorithm (doi:10.1002/spe.4380211102)
-   * 
-   * - Finally it eliminates overlaps by using the method described by
-   *   Gansner and North (doi:10.1007/3-540-37623-2_28)
-   */
-  
-  var defaults = {
-    ready: undefined,            // Callback on layoutready 
-    stop: undefined,             // Callback on layoutstop
-    fit: true,                   // Reset viewport to fit default simulationBounds
-    minDist: 20,                 // Minimum distance between nodes
-    padding: 20,                 // Padding 
-    expandingFactor: -1.0,       // If the network does not satisfy the minDist
-                                 // criterium then it expands the network of this amount
-                                 // If it is set to -1.0 the amount of expansion is automatically
-                                 // calculated based on the minDist, the aspect ratio and the
-                                 // number of nodes
-    maxExpandIterations: 4,     // Maximum number of expanding iterations
-    simulationBounds: undefined  // [x1, y1, x2, y2]; [0, 0, width, height] by default
-  };
-  
-  function SpreadLayout(options){
-    this.options = $$.util.extend({}, defaults, options);
-  }
-  
-  function scriptPath() {
-    var scripts = document.getElementsByTagName('SCRIPT');
-    var path = '';
-    if(scripts && scripts.length>0) {
-        for(var i in scripts) {
-            if(scripts[i].src && scripts[i].src.match(/script\.js$/)) {
-                path = scripts[i].src.replace(/(.*)script\.js$/, '$1');
-            }
-        }
-    }
-    return path;
-  }
-  
-  function cellCentroid( cell ) {
-    var hes = cell.halfedges;
-    var area = 0, x = 0, y = 0;
-    var p1, p2, f;
-
-    for( var i = 0; i < hes.length; ++i ) {
-      p1 = hes[i].getEndpoint();
-      p2 = hes[i].getStartpoint();
-      
-      area += p1.x * p2.y;
-      area -= p1.y * p2.x;
-      
-      f  = p1.x * p2.y - p2.x * p1.y;
-      x += ( p1.x + p2.x ) * f;
-      y += ( p1.y + p2.y ) * f;
-    }
-
-    area /= 2;
-    f = area * 6;
-    return { x: x / f, y: y / f };
-  }
-  
-  function sitesDistance( ls, rs ) {
-    var dx = ls.x - rs.x;
-    var dy = ls.y - rs.y;
-    return Math.sqrt( dx*dx + dy*dy );
-  }
-
-  SpreadLayout.prototype.run = function(){
-
-    var layout = this;
-    var self = this;
-    
-    var options = this.options;
-    var cy = options.cy;
-    var allNodes = cy.nodes();
-    var nodes = cy.elements("node:visible");
-    //var allEdges = cy.edges();
-    var edges = cy.elements("edge:visible");
-    var container = cy.container();
-    var cWidth = container.clientWidth;
-    var cHeight = container.clientHeight;
-    var simulationBounds = options.simulationBounds;
-    var padding = options.padding;
-
-    layout.trigger({ type: 'layoutstart', layout: layout });
-
-    var simBB = { x1: 0, y1: 0, x2: cWidth, y2: cHeight };
-    
-    if( simulationBounds ){
-      simBB.x1 = simulationBounds[0] + padding;
-      simBB.y1 = simulationBounds[1] + padding;
-      simBB.x2 = simulationBounds[2] - padding;
-      simBB.y2 = simulationBounds[3] - padding;
-    } else {
-      simBB.x1 = padding;
-      simBB.y1 = padding;
-      simBB.x2 = cWidth  - padding;
-      simBB.y2 = cHeight - padding;
-    }
-
-    var width  = simBB.x2 - simBB.x1;
-    var height = simBB.y2 - simBB.y1;
-
-    layout.one("layoutready", options.ready);
-    layout.trigger("layoutready");
-
-    // Get start time
-    var startTime = new Date();
-
-    // arbor doesn't work with just 1 node
-    if( nodes.size() <= 1 ){
-      if( options.fit ){
-        cy.reset();
-      }
-
-      nodes.positions({
-        x: Math.round( (simBB.x1 + simBB.x2)/2 ),
-        y: Math.round( (simBB.y1 + simBB.y2)/2 )
-      });
-
-      // Get end time
-      var endTime = new Date();
-      console.info("Layout on "+nodes.size()+" nodes took " + (endTime - startTime) + " ms");
-
-      layout.one("layoutstop", options.stop);
-      layout.trigger("layoutstop");
-
-      return;
-    }
-
-    // First I need to create the data structure to pass to the worker
-    var pData = {
-      'width'     : width,
-      'height'    : height,
-      'minDist'   : options.minDist,
-      'expFact'   : options.expandingFactor,
-      'expIt'     : 0,
-      'maxExpIt'  : options.maxExpandIterations,
-      'vertices'  : [],
-      'edges'     : [],
-      'startTime' : startTime
-    };
-
-    nodes.each(
-      function(i, node){
-        var nodeId = this._private.data.id;
-        pData['vertices'].push({id:nodeId,x:0,y:0});
-      });
-    
-    edges.each(
-      function(){
-        var srcNodeId = this.source().id();
-        var tgtNodeId = this.target().id();
-        pData['edges'].push({src:srcNodeId,tgt:tgtNodeId});
-      });
-
-    // Then I need to create the parallel environment
-    var parallelSrcPath = $('script[src$="/parallel.js"]').attr('src');
-    if( parallelSrcPath == null ) {
-      throw "In order to use the 'spread' layout you need to load the parallel.js library before the cytoscape.js library.";
-    }
-    var evalScrPath =  parallelSrcPath.substring(0, parallelSrcPath.lastIndexOf('/'))+"/eval.js";
-    var p = new Parallel( pData, { evalPath: evalScrPath } );
-    
-    // And to add the required scripts
-    p.require("foograph.js");
-    //p.require("random.js");
-    //p.require("forcedirected.js");
-    p.require("rhill-voronoi-core.js");
-    p.require(sitesDistance);
-    p.require(cellCentroid);
-    
-    // Then I can spawn the execution of the layout
-    p.spawn(
-      function(pData) {
-
-        // I need to retrieve the important data
-        var lWidth    = pData['width'];
-        var lHeight   = pData['height']; 
-        var lMinDist  = pData['minDist'];
-        var lExpFact  = pData['expFact'];
-        var lMaxExpIt = pData['maxExpIt'];
-
-        /*
-         * FIRST STEP: Application of the Fruchterman-Reingold algorithm
-         * 
-         * We use the version implemented by the foograph library
-         *  
-         * Ref.: https://code.google.com/p/foograph/
-         */
-        
-        // We need to create an instance of a graph compatible with the library
-        var frg = new foograph.Graph("FRgraph", false);
-        
-        var frgNodes = {};
-        
-        // Then we have to add the vertices
-        var dataVertices = pData['vertices'];
-        for( var ni = 0; ni < dataVertices.length; ++ni ) {
-          var id = dataVertices[ni]['id'];
-          var v = new foograph.Vertex( id, Math.round(Math.random()*lHeight), Math.round(Math.random()*lHeight) );
-          frgNodes[id] = v;
-          frg.insertVertex(v);
-        }
-        
-        var dataEdges = pData['edges'];
-        for( var ei = 0; ei < dataEdges.length; ++ei ) {
-          var srcNodeId = dataEdges[ei]['src'];
-          var tgtNodeId = dataEdges[ei]['tgt'];
-          frg.insertEdge( "", 1, frgNodes[srcNodeId], frgNodes[tgtNodeId] );
-        }
-
-        var fv = frg.vertices;
-    
-        // Then we apply the layout
-        var frLayoutManager = new foograph.ForceDirectedVertexLayout(lWidth, lHeight, 400, false, 20);
-        
-        frLayoutManager.layout(frg);
-    
-        /*
-         * SECOND STEP: Tiding up of the graph.
-         * 
-         * We use the method described by Gansner and North, based on Voronoi
-         * diagrams.
-         * 
-         * Ref: doi:10.1007/3-540-37623-2_28
-         */
-    
-        // We calculate the Voronoi diagram dor the position of the nodes
-        var voronoi = new Voronoi();
-        var bbox = { xl:0, xr:lWidth, yt:0, yb:lHeight };
-        var vSites = [];
-        for( var i = 0; i < fv.length; ++i ) {
-          vSites[fv[i].label] = fv[i];
-        }
-        
-        function checkMinDist(ee) {
-          var infractions = 0;
-          // Then we check if the minimum distance is satisfied
-          for( var eei = 0; eei < ee.length; ++eei ) {
-            var e = ee[eei];
-            if( (e.lSite != null) && (e.rSite != null) && sitesDistance(e.lSite,e.rSite) < lMinDist ) {
-              ++infractions;
-            }
-          }
-          return infractions;
-        }
-        
-        var diagram = voronoi.compute(fv, bbox);
-        
-        // Then we reposition the nodes at the centroid of their Voronoi cells
-        var cells = diagram.cells;
-        for( var i = 0; i < cells.length; ++i ) {
-          var cell = cells[i];
-          var site = cell.site;
-          var centroid = cellCentroid(cell);
-          var currv = vSites[site.label];
-          currv.x = centroid.x;
-          currv.y = centroid.y;
-        }
-
-        if( lExpFact < 0.0 ) {
-          // Calculates the expanding factor
-          lExpFact = Math.max(0.05,Math.min(0.10,lMinDist / Math.sqrt((lWidth*lHeight)/fv.length) * 0.5));
-          //console.info("Expanding factor is " + (options.expandingFactor * 100.0) + "%");
-        }
-        
-        var prevInfractions = checkMinDist(diagram.edges);
-        //console.info("Initial infractions " + prevInfractions);
-    
-        var bStop = (prevInfractions <= 0);
-        
-        var voronoiIteration = 0;
-        var expandIteration  = 0;
-        
-        var initWidth  = lWidth;
-        
-        while( !bStop ) {
-          ++voronoiIteration;
-          for( var it = 0; it <= 4; ++it ) {
-            voronoi.recycle(diagram);
-            diagram = voronoi.compute(fv, bbox);
-            
-            // Then we reposition the nodes at the centroid of their Voronoi cells
-            cells = diagram.cells;
-            for( var i = 0; i < cells.length; ++i ) {
-              var cell = cells[i];
-              var site = cell.site;
-              var centroid = cellCentroid(cell);
-              var currv = vSites[site.label];
-              currv.x = centroid.x;
-              currv.y = centroid.y;
-            }
-          }
-          
-          var currInfractions = checkMinDist(diagram.edges);
-          //console.info("Current infractions " + currInfractions);
-    
-          if( currInfractions <= 0 ) {
-            bStop = true;
-          } else {
-            if( currInfractions >= prevInfractions || voronoiIteration >= 4 ) {
-              if( expandIteration >= lMaxExpIt ) {
-                bStop = true;
-              } else {
-                lWidth  += lWidth  * lExpFact;
-                lHeight += lHeight * lExpFact;
-                bbox = { xl:0, xr:lWidth, yt:0, yb:lHeight };
-                ++expandIteration;
-                voronoiIteration = 0;
-                //console.info("Expanded to ("+width+","+height+")");
-              }
-            }
-          }
-          prevInfractions = currInfractions;
-        }
-        
-        // Prepare the data to output
-        pData['width']   = lWidth;
-        pData['height']  = lHeight;
-        pData['expIt']   = expandIteration;
-        pData['expFact'] = lExpFact;
-
-        pData['vertices'] = [];
-        for( var i = 0; i < fv.length; ++i ) {
-          pData['vertices'].push({id:fv[i].label,x:fv[i].x,y:fv[i].y});
-        }
-        return pData;
-      }
-    ).then(
-      function(pData) {
-        // First we retrieve the important data
-        var expandIteration = pData['expIt'];
-        
-        var dataVertices = pData['vertices'];
-        var vertices = [];
-        for( var i = 0; i < dataVertices.length; ++i ) {
-          var dv = dataVertices[i];
-          vertices[dv.id] = {x:dv.x,y:dv.y};
-        } 
-        /*
-         * FINALLY:
-         * 
-         * We position the nodes based on the calculation
-         */
-        allNodes.positions(
-          function(i,node) {
-            var pos = node._private.position;
-            pos.x = simBB.x1;
-            pos.y = simBB.y1;
-          });
-
-        nodes.positions(
-          function(i,node) {
-            var id = node._private.data.id;
-            var pos = node._private.position;
-            var vertex = vertices[id];
-            pos.x = Math.round(simBB.x1+vertex.x);
-            pos.y = Math.round(simBB.y1+vertex.y);
-          });
-
-        if( options.fit && expandIteration > 0 ){
-          cy.fit(options.padding);
-        } else {
-          cy.reset();
-        }
-        
-        cy.nodes().rtrigger("position");
-
-        // Get end time
-        var startTime = pData['startTime'];
-        var endTime = new Date();
-        console.info("Layout on "+dataVertices.length+" nodes took " + (endTime - startTime) + " ms");
-
-        layout.one("layoutstop", options.stop);
-        layout.trigger("layoutstop");
-        
-      }
-    );
-    return this;
-  };
-
-  SpreadLayout.prototype.stop = function(){
-  };
-  
-  $$('layout', 'spread', SpreadLayout);
-  
   
 })(cytoscape);
 
