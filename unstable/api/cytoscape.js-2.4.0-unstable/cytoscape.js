@@ -398,6 +398,10 @@ var cytoscape;
       ;
     },
 
+    promise: function(obj){
+      return $$.is.object(obj) && $$.is.fn(obj.then);
+    },
+
     touch: function(){
       return window && ( ('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch );
     },
@@ -4045,7 +4049,7 @@ var cytoscape;
           query: true,
           // NB: if one colon selector is a substring of another from its start, place the longer one first
           // e.g. :foobar|:foo
-          regex: '(:selected|:unselected|:locked|:unlocked|:visible|:hidden|:transparent|:grabbed|:free|:removed|:inside|:grabbable|:ungrabbable|:animated|:unanimated|:selectable|:unselectable|:orphan|:nonorphan|:parent|:child|:loop|:simple|:active|:inactive|:touch)',
+          regex: '(:selected|:unselected|:locked|:unlocked|:visible|:hidden|:transparent|:grabbed|:free|:removed|:inside|:grabbable|:ungrabbable|:animated|:unanimated|:selectable|:unselectable|:orphan|:nonorphan|:parent|:child|:loop|:simple|:active|:inactive|:touch|:backgrounding)',
           populate: function( state ){
             this.colonSelectors.push( state );
           }
@@ -4420,6 +4424,9 @@ var cytoscape;
         break;
       case ':touch':
         allColonSelectorsMatch = $$.is.touch();
+        break;
+      case ':backgrounding':
+        allColonSelectorsMatch = element.backgrounding();
         break;
       }
       
@@ -4878,11 +4885,15 @@ var cytoscape;
       text: { string: true },
       data: { mapping: true, regex: data('data') },
       layoutData: { mapping: true, regex: data('layoutData') },
+      scratch: { mapping: true, regex: data('scratch') },
       mapData: { mapping: true, regex: mapData('mapData') },
       mapLayoutData: { mapping: true, regex: mapData('mapLayoutData') },
+      mapScratch: { mapping: true, regex: mapData('mapScratch') },
+      fn: { mapping: true, fn: true },
       url: { regex: '^url\\s*\\(\\s*([^\\s]+)\\s*\\s*\\)|none|(.+)$' },
       propList: { propList: true },
-      angle: { number: true, units: 'deg|rad' }
+      angle: { number: true, units: 'deg|rad' },
+      textRotation: { enums: ['none', 'autorotate'] }
     };
 
     // define visual style properties
@@ -4906,6 +4917,7 @@ var cytoscape;
       { name: 'font-weight', type: t.fontWeight },
       { name: 'font-size', type: t.size },
       { name: 'min-zoomed-font-size', type: t.size },
+      { name: 'edge-text-rotation', type: t.textRotation },
 
       // visibility
       { name: 'display', type: t.display },
@@ -5041,6 +5053,7 @@ var cytoscape;
           'font-weight': fontWeight,
           'font-size': fontSize,
           'min-zoomed-font-size': 0,
+          'edge-text-rotation': 'none',
           'visibility': 'visible',
           'display': 'element',
           'opacity': 1,
@@ -5221,6 +5234,7 @@ var cytoscape;
     name = $$.util.camel2dash( name ); // make sure the property name is in dash form (e.g. 'property-name' not 'propertyName')
     var property = $$.style.properties[ name ];
     var passedValue = value;
+    var types = $$.style.types;
     
     if( !property ){ return null; } // return null on property of unknown name
     if( value === undefined || value === null ){ return null; } // can't assign null
@@ -5243,38 +5257,70 @@ var cytoscape;
       };
     }
 
+    var hasPie = name.match(/pie-(\d+)-background-size/);
+
+    // check if value is a function used as a mapper
+    if( $$.is.fn(value) ){
+      return {
+        name: name,
+        value: value,
+        strValue: 'fn',
+        mapped: types.fn,
+        bypass: propIsBypass,
+        hasPie: hasPie
+      };
+    }
+
     // check if value is mapped
-    var data, mapData, layoutData, mapLayoutData;
+    var data, mapData, layoutData, mapLayoutData, scratch, mapScratch;
     if( !valueIsString || propIsFlat ){
       // then don't bother to do the expensive regex checks
 
     } else if(
-      ( data = new RegExp( $$.style.types.data.regex ).exec( value ) ) ||
-      ( layoutData = new RegExp( $$.style.types.layoutData.regex ).exec( value ) )
+      ( data = new RegExp( types.data.regex ).exec( value ) ) ||
+      ( layoutData = new RegExp( types.layoutData.regex ).exec( value ) ) ||
+      ( scratch = new RegExp( types.scratch.regex ).exec( value ) )
     ){
       if( propIsBypass ){ return false; } // mappers not allowed in bypass
       
-      var isLayout = layoutData !== undefined;
-      data = data || layoutData;
+      var mapped;
+      if( data ){
+        mapped = types.data;
+      } else if( layoutData ){
+        mapped = types.layoutData;
+      } else { 
+        mapped = types.scratch;
+      }
+
+      data = data || layoutData || scratch;
 
       return {
         name: name,
         value: data,
         strValue: '' + value,
-        mapped: isLayout ? $$.style.types.layoutData : $$.style.types.data,
+        mapped: mapped,
         field: data[1],
         bypass: propIsBypass,
-        hasPie: name.match(/pie-(\d+)-background-size/)
+        hasPie: hasPie
       };
 
     } else if(
-      ( mapData = new RegExp( $$.style.types.mapData.regex ).exec( value ) ) ||
-      ( mapLayoutData = new RegExp( $$.style.types.mapLayoutData.regex ).exec( value ) )
+      ( mapData = new RegExp( types.mapData.regex ).exec( value ) ) ||
+      ( mapLayoutData = new RegExp( types.mapLayoutData.regex ).exec( value ) ) ||
+      ( mapScratch = new RegExp( types.mapScratch.regex ).exec( value ) )
     ){
       if( propIsBypass ){ return false; } // mappers not allowed in bypass
 
-      var isLayout = mapLayoutData !== undefined;
-      mapData = mapData || mapLayoutData;
+      var mapped;
+      if( mapData ){
+        mapped = types.mapData;
+      } else if( mapLayoutData ){
+        mapped = types.mapLayoutData;
+      } else {
+        mapped = types.mapScratch;
+      }
+
+      mapData = mapData || mapLayoutData || mapScratch;
 
       // we can map only if the type is a colour or a number
       if( !(type.color || type.number) ){ return false; }
@@ -5313,14 +5359,14 @@ var cytoscape;
         name: name,
         value: mapData,
         strValue: '' + value,
-        mapped: isLayout ? $$.style.types.mapLayoutData : $$.style.types.mapData,
+        mapped: mapped,
         field: mapData[1],
         fieldMin: parseFloat( mapData[2] ), // min & max are numeric
         fieldMax: parseFloat( mapData[3] ),
         valueMin: valueMin.value,
         valueMax: valueMax.value,
         bypass: propIsBypass,
-        hasPie: name.match(/pie-(\d+)-background-size/)
+        hasPie: hasPie
       };
     }
 
@@ -5399,7 +5445,7 @@ var cytoscape;
         strValue: '' + value + (units ? units : ''),
         units: units,
         bypass: propIsBypass,
-        hasPie: name.match(/pie-(\d+)-background-size/) && value != null && value !== 0 && value !== ''
+        hasPie: hasPie && value != null && value !== 0 && value !== ''
       };
 
       // normalise value in pixels
@@ -5848,10 +5894,12 @@ var cytoscape;
     var prop = parsedProp;
     var style = ele._private.style;
     var fieldVal, flatProp;
+    var types = $$.style.types;
     var type = $$.style.properties[ prop.name ].type;
     var propIsBypass = prop.bypass;
     var origProp = style[ prop.name ];
     var origPropIsBypass = origProp && origProp.bypass;
+    var _p = ele._private;
 
     // can't apply auto to width or height unless it's a parent node
     if( (parsedProp.name === 'height' || parsedProp.name === 'width') && parsedProp.value === 'auto' && ele.isNode() && !ele.isParent() ){
@@ -5882,14 +5930,25 @@ var cytoscape;
 
     // put the property in the style objects
     switch( prop.mapped ){ // flatten the property if mapped
-    case $$.style.types.mapData:
-    case $$.style.types.mapLayoutData:
+    case types.mapData:
+    case types.mapLayoutData:
+    case types.mapScratch:
       
-      var isLayout = prop.mapped === $$.style.types.mapLayoutData;
+      var isLayout = prop.mapped === types.mapLayoutData;
+      var isScratch = prop.mapped === types.mapScratch;
 
       // flatten the field (e.g. data.foo.bar)
       var fields = prop.field.split(".");
-      var fieldVal = isLayout ? ele._private.layoutData : ele._private.data;
+      var fieldVal;
+
+      if( isLayout ){
+        fieldVal = _p.layoutData;
+      } else if( isScratch ){
+        fieldVal = _p.scratch;
+      } else {
+        fieldVal = _p.data;
+      }
+      
       for( var i = 0; i < fields.length && fieldVal; i++ ){
         var field = fields[i];
         fieldVal = fieldVal[ field ];
@@ -5952,18 +6011,28 @@ var cytoscape;
       break;
 
     // direct mapping  
-    case $$.style.types.data: 
-    case $$.style.types.layoutData: 
-
-      var isLayout = prop.mapped === $$.style.types.layoutData;
+    case types.data: 
+    case types.layoutData: 
+    case types.scratch: 
+      var isLayout = prop.mapped === types.layoutData;
+      var isScratch = prop.mapped === types.scratch;
 
       // flatten the field (e.g. data.foo.bar)
       var fields = prop.field.split(".");
-      var fieldVal = isLayout ? ele._private.layoutData : ele._private.data;
-      for( var i = 0; i < fields.length && fieldVal; i++ ){
+      var fieldVal;
+
+      if( isLayout ){
+        fieldVal = _p.layoutData;
+      } else if( isScratch ){
+        fieldVal = _p.scratch;
+      } else {
+        fieldVal = _p.data;
+      }
+
+      if( fieldVal ){ for( var i = 0; i < fields.length; i++ ){
         var field = fields[i];
         fieldVal = fieldVal[ field ];
-      }
+      } }
 
       flatProp = this.parse( prop.name, fieldVal, prop.bypass, true );
 
@@ -5976,6 +6045,17 @@ var cytoscape;
       if( !flatProp ){ printMappingErr(); }
       flatProp.mapping = prop; // keep a reference to the mapping
       prop = flatProp; // the flattened (mapped) property is the one we want
+      
+      break;
+
+    case types.fn:
+      var fn = prop.value;
+      var fnRetVal = fn( ele );
+
+      flatProp = this.parse( prop.name, fnRetVal, prop.bypass, true );
+      flatProp.mapping = prop; // keep a reference to the mapping
+      prop = flatProp; // the flattened (mapped) property is the one we want
+
       break;
 
     case undefined:
@@ -6979,49 +7059,75 @@ var cytoscape;
       _p.maxZoom = options.maxZoom;
     }
 
-    // init style
-    if( _p.styleEnabled ){
-      this.setStyle( options.style );
-    }
+    var loadExtData = function( next ){
+      var anyIsPromise = false;
 
-    // create the renderer
-    cy.initRenderer( $$.util.extend({
-      hideEdgesOnViewport: options.hideEdgesOnViewport,
-      hideLabelsOnViewport: options.hideLabelsOnViewport,
-      textureOnViewport: options.textureOnViewport,
-      wheelSensitivity: $$.is.number(options.wheelSensitivity) && options.wheelSensitivity > 0 ? options.wheelSensitivity : 1,
-      motionBlur: options.motionBlur,
-      pixelRatio: $$.is.number(options.pixelRatio) && options.pixelRatio > 0 ? options.pixelRatio : (options.pixelRatio === 'auto' ? undefined : 1),
-      tapThreshold: $$.is.touch() ? 8 : 4
-    }, options.renderer) );
+      for( var i = 0; i < extData.length; i++ ){
+        var datum = extData[i];
 
-    // trigger the passed function for the `initrender` event
-    if( options.initrender ){
-      cy.on('initrender', options.initrender);
-      cy.on('initrender', function(){
-        cy._private.initrender = true;
-      });
-    }
-
-    // initial load
-    cy.load(options.elements, function(){ // onready
-      cy.startAnimationLoop();
-      cy._private.ready = true;
-
-      // if a ready callback is specified as an option, the bind it
-      if( $$.is.fn( options.ready ) ){
-        cy.on('ready', options.ready);
+        if( $$.is.promise(datum) ){
+          anyIsPromise = true;
+          break;
+        }
       }
 
-      // bind all the ready handlers registered before creating this instance
-      for( var i = 0; i < readies.length; i++ ){
-        var fn = readies[i];
-        cy.on('ready', fn);
+      if( anyIsPromise ){
+        return $$.Promise.all( extData ).then( next ); // load all data asynchronously, then exec rest of init
+      } else {
+        next( extData ); // exec synchronously for convenience
       }
-      if( reg ){ reg.readies = []; } // clear b/c we've bound them all and don't want to keep it around in case a new core uses the same div etc
-      
-      cy.trigger('ready');
-    }, options.done);
+    };
+
+    var extData = [ options.style, options.elements ];
+    loadExtData(function( thens ){
+      var initStyle = thens[0];
+      var initEles = thens[1];
+   
+      // init style
+      if( _p.styleEnabled ){
+        cy.setStyle( initStyle );
+      }
+
+      // create the renderer
+      cy.initRenderer( $$.util.extend({
+        hideEdgesOnViewport: options.hideEdgesOnViewport,
+        hideLabelsOnViewport: options.hideLabelsOnViewport,
+        textureOnViewport: options.textureOnViewport,
+        wheelSensitivity: $$.is.number(options.wheelSensitivity) && options.wheelSensitivity > 0 ? options.wheelSensitivity : 1,
+        motionBlur: options.motionBlur,
+        pixelRatio: $$.is.number(options.pixelRatio) && options.pixelRatio > 0 ? options.pixelRatio : (options.pixelRatio === 'auto' ? undefined : 1),
+        tapThreshold: $$.is.touch() ? 8 : 4
+      }, options.renderer) );
+
+      // trigger the passed function for the `initrender` event
+      if( options.initrender ){
+        cy.on('initrender', options.initrender);
+        cy.on('initrender', function(){
+          cy._private.initrender = true;
+        });
+      }
+
+      // initial load
+      cy.load(initEles, function(){ // onready
+        cy.startAnimationLoop();
+        cy._private.ready = true;
+
+        // if a ready callback is specified as an option, the bind it
+        if( $$.is.fn( options.ready ) ){
+          cy.on('ready', options.ready);
+        }
+
+        // bind all the ready handlers registered before creating this instance
+        for( var i = 0; i < readies.length; i++ ){
+          var fn = readies[i];
+          cy.on('ready', fn);
+        }
+        if( reg ){ reg.readies = []; } // clear b/c we've bound them all and don't want to keep it around in case a new core uses the same div etc
+        
+        cy.trigger('ready');
+      }, options.done);
+
+    });
   };
 
   $$.corefn = $$.Core.prototype; // short alias
@@ -8678,7 +8784,7 @@ var cytoscape;
         queue: []
       },
       rscratch: {}, // object in which the renderer can store information
-      scratch: {}, // scratch objects
+      scratch: params.scratch || {}, // scratch objects
       edges: [], // array of connected edges
       children: [] // array of children
     };
@@ -10713,8 +10819,338 @@ var cytoscape;
 
 
       return res;
-    } // pageRank
+    }, // pageRank
 
+	// options => options object
+        //   weight: function( edge ){} // specifies weight to use for `edge`/`this`. If not present, it will be asumed a weight of 1 for all edges
+        //   directed // default false
+        // retObj => returned object by function
+        // if directed
+        //   indegree_n : function(node) // Returns the normalized indegree of the given node
+        //   outdegree_n: function(node) // Returns the normalized outdegree of the given node
+        // if undirected
+        //   degree_n : function(node) // Returns the normalized degree of the given node
+        degreeCentralityNormalized: function (options) {
+            options = options || {};
+
+            var logDebug = function () {
+                if (debug) {
+                    console.log.apply(console, arguments);
+                }
+            };
+
+            // Parse options
+            // debug - optional
+            if (options.debug != null) {
+                var debug = options.debug;
+            } else {
+                var debug = false;
+            }
+
+            // directed - optional
+            if (options.directed != null) {
+                var directed = options.directed;
+            } else {
+                var directed = false;
+            }
+
+            logDebug("Starting degree centrality...");
+            var nodes = this.nodes();
+            var numNodes = nodes.length;
+            
+            if (!directed) {
+                var degrees = {};
+                var maxDegree = 0;
+
+                for (var i = 0; i < numNodes; i++) {
+                    var node = nodes[i];
+                    // add current node to the current options object and call degreeCentrality 
+                    var currDegree = this.degreeCentrality($$.util.extend({}, options, {root: node}));
+                    if (maxDegree < currDegree.degree)
+                        maxDegree = currDegree.degree;
+
+                    degrees[node.id()] = currDegree.degree;
+                }
+
+                return {
+                    degree_n: function (node) {
+                        if ($$.is.string(node)) {
+                            // from is a selector string
+                            var node = (cy.filter(node)[0]).id();
+                        } else {
+                            // from is a node
+                            var node = node.id();
+                        }
+
+                        return degrees[node] / maxDegree;
+                    }
+                }
+            } else {
+                var indegrees = {};
+                var outdegrees = {};
+                var maxIndegree = 0;
+                var maxOutdegree = 0;
+
+                for (var i = 0; i < numNodes; i++) {
+                    var node = nodes[i];
+                    // add current node to the current options object and call degreeCentrality 
+                    var currDegree = this.degreeCentrality($$.util.extend({}, options, {root: node}));
+
+                    if (maxIndegree < currDegree.indegree)
+                        maxIndegree = currDegree.indegree;
+
+                    if (maxOutdegree < currDegree.outdegree)
+                        maxOutdegree = currDegree.outdegree;
+
+                    indegrees[node.id()] = currDegree.indegree;
+                    outdegrees[node.id()] = currDegree.outdegree;
+                }
+
+                return {
+                    indegree_n: function (node) {
+                        if ($$.is.string(node)) {
+                            // from is a selector string
+                            var node = (cy.filter(node)[0]).id();
+                        } else {
+                            // from is a node
+                            var node = node.id();
+                        }
+
+                        return indegrees[node] / maxIndegree;
+                    },
+                    outdegree_n: function (node) {
+                        if ($$.is.string(node)) {
+                            // from is a selector string
+                            var node = (cy.filter(node)[0]).id();
+                        } else {
+                            // from is a node
+                            var node = node.id();
+                        }
+
+                        return outdegrees[node] / maxOutdegree;
+                    }
+
+                }
+            }
+
+        }, // degreeCentralityNormalized
+
+        // Implemented from the algorithm in Opsahl's paper "Node centrality in weighted networks: Generalizing degree and shortest paths" check the heading 2 "Degree"
+        // options => options object
+        //   node : focal node
+        //   weight: function( edge ){} // specifies weight to use for `edge`/`this`. If not present, it will be asumed a weight of 1 for all edges
+        //   alpha : alpha value for the algorithm (Benchmark values of alpha: 0 -> disregards the weights focuses on number of edges
+        //                                                                     1 -> disregards the number of edges focuses on total amount of weight 
+        //   directed // default false
+        // retObj => returned object by function
+        // if directed
+        //   indegree : indegree of the given node
+        //   outdegree: outdegree of the given node
+        // if undirected
+        //   degree : degree of the given node
+        degreeCentrality: function (options) {
+            options = options || {};
+
+            var logDebug = function () {
+                if (debug) {
+                    console.log.apply(console, arguments);
+                }
+            };
+
+            // Parse options
+            // debug - optional
+            if (options.debug != null) {
+                var debug = options.debug;
+            } else {
+                var debug = false;
+            }
+
+            logDebug("Starting degree centrality...");
+
+            // root - mandatory!
+            if (options != null && options.root != null) {
+                var root = $$.is.string(options.root) ? this.filter(options.root)[0] : options.root[0];
+                logDebug("Source node: %s", root.id());
+            } else {
+                return undefined;
+            }
+            
+            // weight - optional
+            if (options.weight != null && $$.is.fn(options.weight)) {
+                var weightFn = options.weight;
+            } else {
+                // If not specified, assume each edge has equal weight (1)
+                var weightFn = function (e) {
+                    return 1;
+                };
+            }
+
+            // directed - optional
+            if (options.directed != null) {
+                var directed = options.directed;
+            } else {
+                var directed = false;
+            }
+
+            // alpha - optional
+            if (options.alpha != null && $$.is.number(options.alpha)) {
+                var alpha = options.alpha
+            } else {
+                alpha = 0;
+            }
+
+
+            if (!directed) {
+                var connEdges = root.connectedEdges();
+                var k = connEdges.length;
+                var s = 0;
+                
+                // Now, sum edge weights
+                for (var i = 0; i < connEdges.length; i++) {
+                    var edge = connEdges[i];
+                    s += weightFn.apply(edge, [edge]);
+                }
+
+                return {
+                    degree: Math.pow(k, 1 - alpha) * Math.pow(s, alpha)
+                };
+            } else {
+                var incoming = root.connectedEdges('edge[target = "' + root.id() + '"]');
+                var outgoing = root.connectedEdges('edge[source = "' + root.id() + '"]');
+                var k_in = incoming.length;
+                var k_out = outgoing.length;
+                var s_in = 0;
+                var s_out = 0;
+
+                // Now, sum incoming edge weights
+                for (var i = 0; i < incoming.length; i++) {
+                    var edge = incoming[i];
+                    s_in += weightFn.apply(edge, [edge]);
+                }
+
+                // Now, sum outgoing edge weights
+                for (var i = 0; i < outgoing.length; i++) {
+                    var edge = outgoing[i];
+                    s_out += weightFn.apply(edge, [edge]);
+                }
+
+                return {
+                    indegree: Math.pow(k_in, 1 - alpha) * Math.pow(s_in, alpha),
+                    outdegree: Math.pow(k_out, 1 - alpha) * Math.pow(s_out, alpha)
+                };
+            }
+        }, // degreeCentrality
+         
+        // options => options object
+        // weight: function( edge ){} // specifies weight to use for `edge`/`this`. If not present, it will be asumed a weight of 1 for all edges
+        // retObj => returned object by function
+        //   closeness_n : function(node) // Returns the normalized closeness of the given node
+        closenessCentralityNormalized: function (options) {
+            options = options || {};
+
+            var logDebug = function () {
+                if (debug) {
+                    console.log.apply(console, arguments);
+                }
+            };
+
+            // Parse options
+            // debug - optional
+            if (options.debug != null) {
+                var debug = options.debug;
+            } else {
+                var debug = false;
+            }
+
+            logDebug("Starting closeness centrality...");
+
+            var closenesses = {};
+            var maxCloseness = 0;
+            var nodes = this.nodes();
+            var fw = this.floydWarshall({weight: options.weight});
+
+            // Compute closeness for every node and find the maximum closeness
+            nodes.forEach(function (ele) {
+                var currCloseness = 0;
+                for (var i = 0; i < nodes.length; i++) {
+                    if (!(nodes[i].id() == ele.id())) {
+                        currCloseness += 1 / fw.distance(nodes[i], ele);
+                    }
+                }
+
+                if (maxCloseness < currCloseness)
+                    maxCloseness = currCloseness;
+
+                closenesses[ele.id()] = currCloseness;
+            });
+
+            return {
+                closeness_n: function (node) {
+                    if ($$.is.string(node)) {
+                        // from is a selector string
+                        var node = (cy.filter(node)[0]).id();
+                    } else {
+                        // from is a node
+                        var node = node.id();
+                    }
+
+                    return closenesses[node] / maxCloseness;
+                }
+            }
+        },
+        
+        // Implemented from pseudocode from wikipedia
+        // Assumes undirected graph
+        // options => options object
+        //   node : focal node
+        //   weight: function( edge ){} // specifies weight to use for `edge`/`this`. If not present, it will be asumed a weight of 1 for all edges
+        // closeness => returned value by the function. Closeness value of the given node.
+        closenessCentrality: function (options) {
+            options = options || {};
+
+            var logDebug = function () {
+                if (debug) {
+                    console.log.apply(console, arguments);
+                }
+            };
+
+            // Parse options
+            // debug - optional
+            if (options.debug != null) {
+                var debug = options.debug;
+            } else {
+                var debug = false;
+            }
+
+            logDebug("Starting closeness centrality...");
+
+            // root - mandatory!
+            if (options.root != null) {
+                if ($$.is.string(options.root)) {
+                    // use it as a selector, e.g. "#rootID
+                    var root = this.filter(options.root)[0];
+                } else {
+                    var root = options.root[0];
+                }
+                logDebug("Source node: %s", root.id());
+            } else {
+                $$.util.error("options.root required");
+                return undefined;
+            }
+            
+            // we need distance from this node to every other node
+            var dijkstra = this.dijkstra(root, options.weight);
+            var totalDistance = 0;
+
+            this.nodes().forEach(function (ele) {
+                if (ele.id() == root.id())
+                    return;
+
+                totalDistance += 1 / dijkstra.distanceTo(ele);
+            });
+
+            return totalDistance;
+        }
   }); // $$.fn.eles
 
 
@@ -10941,7 +11377,7 @@ var cytoscape;
 
     some: function( fn, thisArg ){
       for( var i = 0; i < this.length; i++ ){
-        var ret = fn.apply( thisArg, [ this[i], i, this ] );
+        var ret = !thisArg ? fn( this[i], i, this ) : fn.apply( thisArg, [ this[i], i, this ] );
 
         if( ret ){
           return true;
@@ -10953,7 +11389,7 @@ var cytoscape;
 
     every: function( fn, thisArg ){
       for( var i = 0; i < this.length; i++ ){
-        var ret = fn.apply( thisArg, [ this[i], i, this ] );
+        var ret = !thisArg ? fn( this[i], i, this ) : fn.apply( thisArg, [ this[i], i, this ] );
 
         if( !ret ){
           return false;
@@ -11151,15 +11587,22 @@ var cytoscape;
 
     scratch: $$.define.data({
       field: 'scratch',
-      allowBinding: false,
+      bindingEvent: 'scratch',
+      allowBinding: true,
       allowSetting: true,
-      settingTriggersEvent: false,
-      allowGetting: true
+      settingEvent: 'scratch',
+      settingTriggersEvent: true,
+      triggerFnName: 'trigger',
+      allowGetting: true,
+      updateStyle: true
     }),
 
     removeScratch: $$.define.removeData({
       field: 'scratch',
-      triggerEvent: false
+      event: 'scratch',
+      triggerFnName: 'trigger',
+      triggerEvent: true,
+      updateStyle: true
     }),
 
     rscratch: $$.define.data({
@@ -12194,6 +12637,8 @@ var cytoscape;
       };
     }
   });
+
+  $$.elesfn.and = $$.elesfn.add;
   
 })( cytoscape );
 ;(function($$){ 'use strict';
@@ -12250,7 +12695,7 @@ var cytoscape;
 
         for(var i = 0; i < this.length; i++){
           var ele = this[i];
-          var ret = fn.apply( thisArg, [ ele, i, this ] );
+          var ret = thisArg ? fn.apply( thisArg, [ ele, i, this ] ) : fn( ele, i, this );
 
           if( ret === false ){ break; } // exit each early on return false
         }
@@ -12759,6 +13204,9 @@ var cytoscape;
     },
 
     transparent: function(){
+      var cy = this.cy();
+      if( !cy.styleEnabled() ){ return false; }
+
       var ele = this[0];
       var hasCompoundNodes = ele.cy().hasCompoundNodes();
 
@@ -12783,6 +13231,15 @@ var cytoscape;
 
         return ele.isParent() && autoW && autoH;
       }
+    },
+
+    backgrounding: function(){
+      var cy = this.cy();
+      if( !cy.styleEnabled() ){ return false; }
+
+      var ele = this[0];
+
+      return ele._private.backgrounding ? true : false;
     }
 
   });
@@ -14938,8 +15395,10 @@ var cytoscape;
 
     var textX, textY;  
     var edgeCenterX, edgeCenterY;
-    var rs = edge._private.rscratch;
-    var rstyle = edge._private.rstyle;
+    var _p = edge._private;
+    var rs = _p.rscratch;
+    var style = _p.style;
+    var rstyle = _p.rstyle;
     
     if (rs.edgeType == 'self') {
       edgeCenterX = rs.selfEdgeMidX;
@@ -14951,11 +15410,14 @@ var cytoscape;
       edgeCenterX = $$.math.qbezierAt( rs.startX, rs.cp2x, rs.endX, 0.5 );
       edgeCenterY = $$.math.qbezierAt( rs.startY, rs.cp2y, rs.endY, 0.5 );
     } else if (rs.edgeType == 'haystack') {
-      var srcPos = edge._private.source._private.position;
-      var tgtPos = edge._private.target._private.position;
+      var src = _p.source;
+      var tgt = _p.target;
+      var srcPos = src._private.position;
+      var tgtPos = tgt._private.position;
+      var pts = rs.haystackPts;
 
-      edgeCenterX = (srcPos.x + rs.source.x + tgtPos.x + rs.target.x)/2;
-      edgeCenterY = (srcPos.y + rs.source.y + tgtPos.y + rs.target.y)/2;
+      edgeCenterX = ( pts[0] + pts[2] )/2;
+      edgeCenterY = ( pts[1] + pts[3] )/2;
     }
     
     textX = edgeCenterX;
@@ -15537,7 +15999,9 @@ var cytoscape;
       
     for( var i = 0; i < haystackEdges.length; i++ ){
       var edge = haystackEdges[i];
-      var rscratch = edge._private.rscratch;
+      var _p = edge._private;
+      var rscratch = _p.rscratch;
+      var rs = rscratch;
 
       if( !rscratch.haystack ){
         var angle = Math.random() * 2 * Math.PI;
@@ -15556,7 +16020,25 @@ var cytoscape;
 
         rscratch.edgeType = 'haystack';
         rscratch.haystack = true;
-      }  
+      }
+
+      var src = _p.source;
+      var tgt = _p.target;
+      var srcPos = src._private.position;
+      var tgtPos = tgt._private.position;
+      var srcW = src._private.style['width'].pxValue;
+      var tgtW = tgt._private.style['width'].pxValue;
+      var srcH = src._private.style['height'].pxValue;
+      var tgtH = tgt._private.style['height'].pxValue;
+      var radius = style['haystack-radius'].value;
+      var halfRadius = radius/2; // b/c have to half width/height
+
+      rs.haystackPts = [
+        rs.source.x * srcW * halfRadius + srcPos.x,
+        rs.source.y * srcH * halfRadius + srcPos.y,
+        rs.target.x * tgtW * halfRadius + tgtPos.x,
+        rs.target.y * tgtH * halfRadius + tgtPos.y
+      ];
     }
 
     return hashTable;
@@ -15861,9 +16343,9 @@ var cytoscape;
     var lineStyle = drawOverlayInstead ? 'solid' : style['line-style'].value;
     context.lineWidth = edgeWidth;
     
-    if( rs.edgeType !== 'haystack' ){
-      //this.findEndpoints(edge);
-    }
+    // if( rs.edgeType !== 'haystack' ){
+    //   this.findEndpoints(edge);
+    // }
     
     if( rs.edgeType === 'haystack' ){
       var radius = style['haystack-radius'].value;
@@ -15872,12 +16354,7 @@ var cytoscape;
       this.drawStyledEdge(
         edge, 
         context, 
-        rs.haystackPts = [
-          rs.source.x * sourceW * halfRadius + sourcePos.x,
-          rs.source.y * sourceH * halfRadius + sourcePos.y,
-          rs.target.x * targetW * halfRadius + targetPos.x,
-          rs.target.y * targetH * halfRadius + targetPos.y
-        ],
+        rs.haystackPts,
         lineStyle,
         edgeWidth
       );
@@ -16351,7 +16828,36 @@ var cytoscape;
     // this.recalculateEdgeLabelProjection( edge );
     
     var rs = edge._private.rscratch;
-    this.drawText(context, edge, rs.labelX, rs.labelY);
+    if( !$$.is.number( rs.labelX ) || !$$.is.number( rs.labelY ) ){ return; } // no pos => label can't be rendered
+
+    var style = edge._private.style;
+    var autorotate = style['edge-text-rotation'].strValue === 'autorotate';
+    var theta, dx, dy;
+    
+    if( autorotate ){
+      switch( rs.edgeType ){
+        case 'haystack':
+          dx = rs.haystackPts[2] - rs.haystackPts[0];
+          dy = rs.haystackPts[3] - rs.haystackPts[1];
+          break;
+        default:
+          dx = rs.endX - rs.startX;
+          dy = rs.endY - rs.startY;
+      }
+
+      theta = Math.atan( dy / dx );
+
+      context.translate(rs.labelX, rs.labelY);
+      context.rotate(theta);
+
+      this.drawText(context, edge, 0, -4); // make label offset from the edge a bit
+
+      context.rotate(-theta);
+      context.translate(-rs.labelX, -rs.labelY);
+    } else {
+      this.drawText(context, edge, rs.labelX, rs.labelY);
+    }
+
   };
 
   // Draw node text
@@ -16374,6 +16880,7 @@ var cytoscape;
     var textHalign = node._private.style['text-halign'].strValue;
     var textValign = node._private.style['text-valign'].strValue;
     var rs = node._private.rscratch;
+    if( !$$.is.number( rs.labelX ) || !$$.is.number( rs.labelY ) ){ return; } // no pos => label can't be rendered
 
     switch( textHalign ){
       case 'left':
@@ -16504,6 +17011,7 @@ var cytoscape;
     var nodeWidth, nodeHeight;
     var style = node._private.style;
     var rs = node._private.rscratch;
+    var _p = node._private;
     
     var usePaths = CanvasRenderer.usePaths();
     var canvasContext = context;
@@ -16621,7 +17129,13 @@ var cytoscape;
         if( image.complete ){
           this.drawInscribedImage(context, image, node);
         }
-        
+
+        var prevBging = _p.backgrounding;
+        _p.backgrounding = !image.complete;
+
+        if( prevBging !== _p.backgrounding ){ // update style b/c :backgrounding state changed
+          node.updateStyle( false );
+        }
       } 
       
       var darkness = style['background-blacken'].value;
@@ -16967,7 +17481,8 @@ var cytoscape;
     var cy = r.data.cy; var data = r.data; 
     var needDraw = data.canvasNeedsRedraw;
     var motionBlur = options.motionBlur !== undefined ? options.motionBlur : r.motionBlur;
-    motionBlur = motionBlur && !forcedContext && r.motionBlurEnabled;
+    var inBoxSelection = r.data.select[4] ? true : false;
+    motionBlur = motionBlur && !forcedContext && r.motionBlurEnabled && !inBoxSelection;
 
     if( r.motionBlurTimeout ){
       clearTimeout( r.motionBlurTimeout );
@@ -17761,11 +18276,10 @@ var cytoscape;
         return;
       }
 
-      var nodes = parent
-        .descendants()
-        .add( parent )
-        .not( node )
-        .not( node.descendants() )
+      var nodes = parent.descendants()
+        .merge( parent )
+        .unmerge( node )
+        .unmerge( node.descendants() )
       ;
 
       var edges = nodes.connectedEdges();
@@ -18434,7 +18948,7 @@ var cytoscape;
               }
             } else {
               if( !shiftDown ){
-                cy.$(':selected').not( near ).unselect();
+                cy.$(':selected').unmerge( near ).unselect();
                 near.select();
               }               
             }
@@ -18467,7 +18981,7 @@ var cytoscape;
             newlySelCol.select();
           } else {
             if( !shiftDown ){
-              cy.$(':selected').not( newlySelCol ).unselect();
+              cy.$(':selected').unmerge( newlySelCol ).unselect();
             }
 
             newlySelCol.select();
@@ -19346,7 +19860,7 @@ var cytoscape;
           var newlySelCol = new $$.Collection( cy, newlySelected );
 
           if( cy.selectionType() === 'single' ){
-            cy.$(':selected').not( newlySelCol ).unselect();
+            cy.$(':selected').unmerge( newlySelCol ).unselect();
           }
 
           newlySelCol.select();
@@ -19491,7 +20005,7 @@ var cytoscape;
             && rdist2 < r.tapThreshold2 ) {
 
           if( cy.selectionType() === 'single' ){
-            cy.$(':selected').not( start ).unselect();
+            cy.$(':selected').unmerge( start ).unselect();
             start.select();
           } else {
             if( start.selected() ){
@@ -20508,6 +21022,7 @@ var cytoscape;
     directed: false, // whether the tree is directed downwards (or edges can point in any direction if false)
     padding: 30, // padding on fit
     circle: false, // put depths in concentric circles if true, put depths top down if false
+    spacingFactor: 1.75, // positive spacing factor, larger => more space between nodes (N.B. n/a if causes overlap)
     boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
     avoidOverlap: true, // prevents node overlap, may overflow boundingBox if not enough space
     roots: undefined, // the roots of the trees
@@ -20775,7 +21290,7 @@ var cytoscape;
         
         minDistance = Math.max(minDistance, w, h);
       }
-      minDistance *= 1.75; // just to have some nice spacing
+      minDistance *= options.spacingFactor; // just to have some nice spacing
     }
 
     // get the weighted percent for an element based on its connectivity to other levels
