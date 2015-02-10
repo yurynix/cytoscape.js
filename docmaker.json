@@ -2962,6 +2962,12 @@
     {
       "name": "Extensions",
       "extensions": [
+        {
+          "name": "cerebralweb",
+          "github": "silviafrias/cerebral-web",
+          "descr": "A plugin to enable fast and interactive visualisation of molecular interaction networks stratified based on subcellular localisation or other custom annotation."
+        },
+
         { 
           "name": "cxtmenu",
           "github": "cytoscape/cytoscape.js-cxtmenu",
@@ -2978,6 +2984,12 @@
           "name": "navigator",
           "github": "cytoscape/cytoscape.js-navigator",
           "descr": "A bird's eye view widget of the graph."
+        },
+
+        { 
+          "name": "noderesize", 
+          "github": "curupaco/cytoscape.js-noderesize",
+          "descr": "A plugin that creates a node resize control."
         },
 
         { 
