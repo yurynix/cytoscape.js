@@ -36,6 +36,18 @@ To install Cytoscape.js via Bower (in the terminal):
 bower install cytoscape
 ```
 
+To install Cytoscape.js via spm (in the terminal):
+
+```bash
+spm install cytoscape
+```
+
+To install Cytoscape.js via Meteor/Atmosphere (in the terminal):
+
+```bash
+meteor add maxkfranz:cytoscape
+```
+
 ### Getting started
 
 An instance of Cytoscape.js correponds to a graph.  You can create an instance as follows:
@@ -117,7 +129,10 @@ var cy = cytoscape({
   userZoomingEnabled: true,
   panningEnabled: true,
   userPanningEnabled: true,
+  boxSelectionEnabled: false,
   selectionType: (isTouchDevice ? 'additive' : 'single'),
+  touchTapThreshold: 8,
+  desktopTapThreshold: 4,
   autolock: false,
   autoungrabify: false,
   autounselectify: false,
@@ -129,6 +144,7 @@ var cy = cytoscape({
   hideLabelsOnViewport: false,
   textureOnViewport: false,
   motionBlur: false,
+  motionBlurOpacity: 0.2,
   wheelSensitivity: 1,
   pixelRatio: 1,
   initrender: function(evt){ /* ... */ },
@@ -171,13 +187,17 @@ var cy = cytoscape({
 
 **`userPanningEnabled`** : Whether user events (e.g. dragging the graph background) are allowed to pan the graph.  Programmatic changes to pan are unaffected by this option.
 
+**`boxSelectionEnabled`** : Whether box selection (i.e. drag a box overlay around, and release it to select) is enabled.  If enabled, the user must taphold to pan the graph.
+
 **`selectionType`** : A string indicating the selection behaviour from user input.  By default, this is set automatically for you based on the type of input device detected.  On touch devices, `'additive'` is default &mdash; a new selection made by the user adds to the set of currenly selected elements.  On mouse-input devices, `'single'` is default &mdash; a new selection made by the user becomes the entire set of currently selected elements (i.e. the previous elements are unselected).
+
+**`touchTapThreshold`** & **`desktopTapThreshold`** : A nonnegative integer that indicates the maximum allowable distance that a user may move during a tap gesture, on touch devices and desktop devices respectively.  This makes tapping easier for users.  These values have sane defaults, so it is not advised to change these options unless you have very good reason for doing so.  Larger values will almost certainly have undesirable consequences.
 
 **`autoungrabify`** : Whether nodes should be ungrabified (not grabbable by user) by default (if `true`, overrides individual node state).
 
-**`autolock`** : Whether nodes should be locked (not movable at all) by default (if `true`, overrides individual node state).
+**`autolock`** : Whether nodes should be locked (not draggable at all) by default (if `true`, overrides individual node state).
 
-**`autounselectify`** : Whether nodes should be unselectified (immutible selection state) by default (if `true`, overrides individual element state).
+**`autounselectify`** : Whether nodes should be unselectified (immutable selection state) by default (if `true`, overrides individual element state).
 
 
 ### Rendering options
@@ -194,6 +214,8 @@ var cy = cytoscape({
 
 **`motionBlur`** : When set to `true`, the renderer will use a motion blur effect to make the transition between frames seem smoother.  This can significantly increase the perceived performance for a large graphs.
 
+**`motionBlurOpacity`** : When `motionBlur: true`, this value controls the opacity of motion blur frames.  Higher values make the motion blur effect more pronounced.
+
 **`wheelSensitivity`** : Changes the scroll wheel sensitivity when zooming.  This is a multiplicative modifier.  So, a value between 0 and 1 reduces the sensitivity (zooms slower), and a value greater than 1 increases the sensitivity (zooms faster).
 
 **`pixelRatio`** : Overrides the screen pixel ratio with a manually set value (`1.0` or `0.666` recommended, if set).  This can be used to increase performance on high density displays by reducing the effective area that needs to be rendered.  If you want to use the hardware's actual pixel ratio at the expense of performance, you can set `pixelRatio: 'auto'`.
@@ -203,4 +225,3 @@ var cy = cytoscape({
 **`renderer`** : A plain object containing options for the renderer to be used.  The `options.renderer.name` field specifies which renderer is used.  You need not specify anything for the `renderer` option, unless you want to specify one of the rendering options below:
 
 * **`renderer.name`** : The name of the renderer to use.  By default, the `'canvas'` renderer is used.  If you [build and register](#extensions) your own renderer, then you can specify its name here.
-

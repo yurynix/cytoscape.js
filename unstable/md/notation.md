@@ -11,7 +11,7 @@ There are two components in the architecture that a developer need concern himse
 
 The core provides several functions to access elements in the graph.  Each of these functions returns a collection, a set of elements in the graph.  Functions are available on collections that allow the developer to filter the collection, perform operations on the collection, traverse the graph about the collection, get data about elements in the collection, and so on.
 
-<span class="important-indicator"></span> Note that a collection is immutible by default, meaning that the set of elements within a collection can not be changed.  The API returns a new collection with different elements when necessary, instead of mutating the existing collection.  This allows the developer to safely use set theory operations on collections, use collections functionally, and so on.
+<span class="important-indicator"></span> Note that a collection is immutable by default, meaning that the set of elements within a collection can not be changed.  The API returns a new collection with different elements when necessary, instead of mutating the existing collection.  This allows the developer to safely use set theory operations on collections, use collections functionally, and so on.
 
 
 ## Functions
@@ -84,8 +84,8 @@ cytoscape({
 
       classes: 'foo bar', // a space separated list of class names that the element has
 
-      // NB: you should only use `css` for very special cases; use classes instead
-      css: { 'background-color': 'red' } // overriden style properties
+      // NB: you should only use `style`/`css` for very special cases; use classes instead
+      style: { 'background-color': 'red' } // overriden style properties
     },
 
     { // node n2
@@ -123,7 +123,7 @@ cytoscape({
   style: [
     {
       selector: 'node',
-      css: {
+      style: {
         'content': 'data(id)'
       }
     }

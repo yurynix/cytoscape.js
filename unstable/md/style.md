@@ -21,7 +21,7 @@ An example style file:
 node {
   background-color: green;
 }
-``` 
+```
 
 At initialisation:
 
@@ -48,7 +48,7 @@ cytoscape({
   style: [
     {
       selector: 'node',
-      css: {
+      style: {
         'background-color': 'red'
       }
     }
@@ -70,7 +70,7 @@ cytoscape({
 
   style: cytoscape.stylesheet()
     .selector('node')
-      .css({
+      .style({
         'background-color': 'blue'
       })
 
@@ -81,6 +81,43 @@ cytoscape({
 });
 ```
 
+You may alternatively use `css` in place of `style`, e.g. `.selector( ... ).css( ... )` or `{ selector: ..., css: ... }`.
+
+
+### Functional values
+
+In the JSON or functional stylesheet formats, it is possible to specify a function as the value for a style property.  In this manner, the style value can be specified functionally on a per-element basis.
+
+<span class="important-indicator"></span> Note that if using the JSON stylesheet format, it will not be possible to serialise and deserialise your stylesheet to JSON proper.
+
+Example:
+
+```js
+cytoscape({
+  container: document.getElementById('cy'),
+
+  // ...
+
+  style: cytoscape.stylesheet()
+    .selector('node')
+      .style({
+        'background-color': function( ele ){ return ele.data('bg') }
+
+        // which works the same as
+
+        // 'background-color': 'data(bg)'
+      })
+
+      // ...
+
+
+  // , ...
+});
+```
+
+<span class="important-indicator"></span> Using a function as a style property value may be convenient in certain cases.  However, it may not be a performant option.  Thus, it may be worthwhile to use caching if possible, such as by using the lodash [`_.memoize()`](https://lodash.com/docs#memoize) function.
+
+
 
 ## Property types
 
@@ -88,7 +125,7 @@ cytoscape({
  * Values requiring a number, such as a length, can be specified in pixel values (e.g. `24px`), unitless values that are implicitly in pixels (`24`), or em values (e.g. `2em`).
  * Opacity values are specified as numbers ranging on `0 <= opacity <= 1`.
  * Time is measured in units of ms or s.
- 
+
 
 
  ## Mappers
@@ -99,10 +136,6 @@ In addition to specifying the value of a property outright, the developer may al
 
 * **`data()`** specifies a direct mapping to an element's data field.  For example, `data(descr)` would map a property to the value in an element's `descr` field in its data (i.e. `ele.data("descr")`).  This is useful for mapping to properties like label text content (the `content` property).
 * **`mapData()`** specifies a linear mapping to an element's data field.  For example, `data(weight, 0, 100, blue, red)` maps an element's weight to gradients between blue and red for weights between 0 and 100.  An element with `ele.data("weight") === 0` would  be mapped to blue, for instance.  Elements whose values fall outside of the specified range are mapped to the extremity values.  In the previous example, an element with `ele.data("weight") === -1` would be mapped to blue.
-* **`layoutData()`** specifies a direct mapping like `data()` but uses special layout defined values (only supported for some layouts).
-* **`mapLayoutData()`** specifies a linear mapping like `mapData()` but uses special layout defined values (only supported for some layouts).
-* **`scratch()`** specifies a direct mapping like `data()` but uses scratch data.
-* **`mapScratch()`** specifies a linear mapping like `mapData()` but uses scratch data.
 * **`function( ele ){ ... }`** A function may be passed as the value of a style property.  The function has a single `ele` argument which specifies the element for which the style property value is being calculated.  The function must specify a valid value for the corresponding style property for all elements that its corresponding selector block applies.  <span class="important-indicator"></span> Note that while convenient, these functions ought to be inexpensive to execute:  The functions are called more often than if the developer writes data by `data()` or `scratch()` &mdash; where `data()` or `scratch()` would provide an automatic caching mechanism.
 
 
@@ -138,6 +171,8 @@ A background image may be applied to a node's body:
 
  * **`background-image`** : The URL that points to the image that should be used as the node's background.  PNG, JPG, and SVG are supported formats.  You may use a [data URI](https://en.wikipedia.org/wiki/Data_URI_scheme) to use embedded images, thereby saving a HTTP request.
  * **`background-image-opacity`** : The opacity of the background image.
+ * **`background-width`** : Specifies the width of the image.  A percent value (e.g. `50%`) may be used to set the image width relative to the node width.  If used in combination with `background-fit`, then this value overrides the width of the image in calculating the fitting &mdash; thereby overriding the aspect ratio.  The `auto` value is used by default, which uses the width of the image.
+ * **`background-height`** : Specifies the height of the image.  A percent value (e.g. `50%`) may be used to set the image height relative to the node height.  If used in combination with `background-fit`, then this value overrides the height of the image in calculating the fitting &mdash; thereby overriding the aspect ratio.  The `auto` value is used by default, which uses the height of the image.
  * **`background-fit`** : How the background image is fit to the node; may be `none` for original size, `contain` to fit inside node, or `cover` to cover the node.
  * **`background-repeat`** : Whether to repeat the background image; may be `no-repeat`, `repeat-x`, `repeat-y`, or `repeat`.
  * **`background-position-x`** : The x position of the background image, measured in percent (e.g. `50%`) or pixels (e.g. `10px`).
@@ -171,7 +206,6 @@ These properties affect the styling of an edge's line:
  * **`control-point-weight`** : Weights control points along the line from source to target.  This value ranges on [0, 1], with 0 towards the source node and 1 towards the target node.
  * **`line-color`** : The colour of the edge's line.
  * **`line-style`** : The style of the edge's line; may be `solid`, `dotted`, or `dashed`.
- * **`edge-text-rotation`** : Whether to rotate edge labels as the relative angle of an edge changes; may be `none` for page-aligned labels or `autorotate` for edge-aligned labels.  This works best with left-to-right text.
 
 
 
@@ -221,10 +255,24 @@ Towards the target node, positioned in the middle of the edge:
  * **`font-style`** : A [CSS font style](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style) to be applied to the label text.
  * **`font-weight`** : A [CSS font weight](https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight) to be applied to the label text.
  * **`text-transform`** : A transformation to apply to the label text; may be `none`, `uppercase`, or `lowercase`.
+ * **`text-wrap`** : A wrapping style to apply to the label text; may be `none` for no wrapping (including manual newlines: `\n`) or `wrap` for manual and/or autowrapping.
+ * **`text-max-width`** : The maximum width for wrapped text, applied when `text-wrap` is set to `wrap`.  For only manual newlines (i.e. `\n`), set a very large value like `1000px` such that only your newline characters would apply.
+ * **`edge-text-rotation`** : Whether to rotate edge labels as the relative angle of an edge changes; may be `none` for page-aligned labels or `autorotate` for edge-aligned labels.  This works best with left-to-right text.
  * **`text-opacity`** : The opacity of the label text, including its outline.
  * **`text-outline-color`** : The colour of the outline around the element's label text.
  * **`text-outline-opacity`** : The opacity of the outline on label text.
  * **`text-outline-width`** : The size of the outline on label text.
+ * **`text-shadow-blur`** : The shadow blur, note that when greater than 0, this could affect performance. Default to 5.
+ * **`text-shadow-color`** : The colour of the shadow.
+ * **`text-shadow-offset-x`** : The x offset relative to the text where the shadow will be displayed, can be negative. If you set blur to 0, add an offset to view your shadow.
+ * **`text-shadow-offset-y`** : The y offset relative to the text where the shadow will be displayed, can be negative. If you set blur to 0, add an offset to view your shadow.
+ * **`text-shadow-opacity`** : The opacity of the shadow.
+ * **`text-background-color`** : A color to apply on the text background, may be `none` or a valid color.
+ * **`text-background-opacity`** : The opacity of the label background.
+ * **`text-background-shape`** : The shape to use for the label background, can be rectangle or roundrectangle.
+ * **`text-border-width`** : The border width to put around the label.
+ * **`text-border-style`** : The style of the border around the label; may be `solid`, `dotted`, `dashed`, or `double`.
+ * **`text-border-color`** : The color of the border around the label.
  * **`min-zoomed-font-size`** : If zooming makes the effective font size of the label smaller than this, then no label is shown.
 
 These properties can only be used on node labels:
@@ -242,7 +290,15 @@ These properties allow for the creation of overlays on top of nodes or edges, an
  * **`overlay-padding`** : The area outside of the element within which the overlay is shown.
  * **`overlay-opacity`** : The opacity of the overlay.
 
+## Shadow
 
+These properties allow for the creation of shadows on top of nodes or edges. Note that shadow-blur could seriously impact performance on large graph.
+
+ * **`shadow-blur`** :The shadow blur, note that if greater than 0, this could impact performance.
+ * **`shadow-color`** : The colour of the shadow.
+ * **`shadow-offset-x`** : The x offset relative to the node/edge where the shadow will be displayed, can be negative. If you set blur to 0, add an offset to view your shadow.
+ * **`shadow-offset-y`** : The y offset relative to the node/edge where the shadow will be displayed, can be negative. If you set blur to 0, add an offset to view your shadow.
+ * **`shadow-opacity`** : The opacity of the shadow.
 
 ## Transition animation
 
