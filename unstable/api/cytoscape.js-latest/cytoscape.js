@@ -4921,7 +4921,7 @@ this.cytoscape = cytoscape;
       textTransform: { enums: ['none', 'uppercase', 'lowercase'] },
       textWrap: { enums: ['none', 'wrap'] },
       textBackgroundShape: { enums: ['rectangle', 'roundrectangle']},
-      nodeShape: { enums: ['rectangle', 'roundrectangle', 'ellipse', 'triangle', 'square', 'pentagon', 'hexagon', 'heptagon', 'octagon', 'star'] },
+      nodeShape: { enums: ['rectangle', 'roundrectangle', 'ellipse', 'triangle', 'square', 'pentagon', 'hexagon', 'heptagon', 'octagon', 'star', 'diamond'] },
       arrowShape: { enums: ['tee', 'triangle', 'triangle-tee', 'triangle-backcurve', 'half-triangle-overshot', 'square', 'circle', 'diamond', 'none'] },
       arrowFill: { enums: ['filled', 'hollow'] },
       display: { enums: ['element', 'none'] },
@@ -7788,8 +7788,8 @@ this.cytoscape = cytoscape;
         hideLabelsOnViewport: options.hideLabelsOnViewport,
         textureOnViewport: options.textureOnViewport,
         wheelSensitivity: $$.is.number(options.wheelSensitivity) && options.wheelSensitivity > 0 ? options.wheelSensitivity : 1,
-        motionBlur: options.motionBlur,
-        motionBlurOpacity: options.motionBlurOpacity,
+        motionBlur: options.motionBlur === undefined ? true : options.motionBlur, // on by default
+        motionBlurOpacity: options.motionBlurOpacity === undefined ? 0.05 : options.motionBlurOpacity,
         pixelRatio: $$.is.number(options.pixelRatio) && options.pixelRatio > 0 ? options.pixelRatio : (options.pixelRatio === 'auto' ? undefined : 1),
         tapThreshold: defVal( $$.is.touch() ? 8 : 4, $$.is.touch() ? options.touchTapThreshold : options.desktopTapThreshold )
       }, options.renderer) );
@@ -15257,12 +15257,13 @@ this.cytoscape = cytoscape;
     this.hideLabelsOnViewport = options.hideLabelsOnViewport;
     this.textureOnViewport = options.textureOnViewport;
     this.wheelSensitivity = options.wheelSensitivity;
-    this.motionBlurEnabled = options.motionBlur === undefined ? true : options.motionBlur; // on by default
+    this.motionBlurEnabled = options.motionBlur; // on by default
     this.forcedPixelRatio = options.pixelRatio;
     this.motionBlur = true; // for initial kick off
-    this.motionBlurOpacity = options.motionBlurOpacity === undefined ? 0.2 : options.motionBlurOpacity;
+    this.motionBlurOpacity = options.motionBlurOpacity;
     this.motionBlurTransparency = 1 - this.motionBlurOpacity;
-    this.motionBlurPxRatio = this.mbPxRBlurry = 0.666;
+    this.motionBlurPxRatio = 1;
+    this.mbPxRBlurry = 1; //0.8;
     this.minMbLowQualFrames = 4;
     this.fullQualityMb = false;
     this.clearedForMotionBlur = [];
@@ -17813,6 +17814,7 @@ this.cytoscape = cytoscape;
   };
 
 })( cytoscape );
+
 ;(function($$){ 'use strict';
 
   var CanvasRenderer = $$('renderer', 'canvas');
@@ -18383,6 +18385,8 @@ this.cytoscape = cytoscape;
           r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
           r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
           
+          r.drawingImage = true;
+          
           r.redraw();
         });
         
@@ -18643,6 +18647,7 @@ this.cytoscape = cytoscape;
 
   
 })( cytoscape );
+
 ;(function($$){ 'use strict';
 
   var CanvasRenderer = $$('renderer', 'canvas');
@@ -18833,7 +18838,7 @@ this.cytoscape = cytoscape;
   CRp.redraw = function( options ) {
     options = options || {};
 
-    // console.log('redraw');
+    // console.log('redraw()');
 
     var forcedContext = options.forcedContext;
     var drawAllLayers = options.drawAllLayers;
@@ -18844,29 +18849,19 @@ this.cytoscape = cytoscape;
     var pixelRatio = options.forcedPxRatio === undefined ? this.getPixelRatio() : options.forcedPxRatio;
     var cy = r.data.cy; var data = r.data; 
     var needDraw = data.canvasNeedsRedraw;
+    var textureDraw = r.textureOnViewport && !forcedContext && (r.pinching || r.hoverData.dragging || r.swipePanning || r.data.wheelZooming);
     var motionBlur = options.motionBlur !== undefined ? options.motionBlur : r.motionBlur;
     var mbPxRatio = r.motionBlurPxRatio;
+    var hasCompoundNodes = cy.hasCompoundNodes();
     var inNodeDragGesture = r.hoverData.draggingEles;
     var inBoxSelection = r.hoverData.selecting || r.touchData.selecting ? true : false;
     motionBlur = motionBlur && !forcedContext && r.motionBlurEnabled && !inBoxSelection;
+    var motionBlurFadeEffect = motionBlur;
 
-    if( motionBlur ){
-      if( r.mbFrames == null ){
-        r.mbFrames = 0;
-      }
+    // console.log('textureDraw?', textureDraw);
 
-      r.mbFrames++;
 
-      // go to lower quality blurry frames when several m/b frames have been rendered (avoids flashing)
-      if( r.mbFrames > r.minMbLowQualFrames ){
-        //r.fullQualityMb = false;
-        r.motionBlurPxRatio = r.mbPxRBlurry;
-      }
-    } 
-
-    // console.log('mb: %s, mbframes: %s, fq: %s', motionBlur, r.mbFrames, r.fullQualityMb);
-
-    if( motionBlur && r.motionBlurTimeout ){
+    if( !forcedContext && r.motionBlurTimeout ){
       clearTimeout( r.motionBlurTimeout );
     }
 
@@ -18894,7 +18889,7 @@ this.cytoscape = cytoscape;
 
     if( !forcedContext && !r.clearingMotionBlur ){
       if( !callAfterLimit || this.currentlyDrawing ){
-        // console.log('-- skip');
+        // console.log('-- skip', redrawLimit);
 
         // we have new things to draw but we're busy, so try again when possibly free
         this.redrawTimeout = setTimeout(function(){
@@ -18907,6 +18902,28 @@ this.cytoscape = cytoscape;
       this.currentlyDrawing = true;
     }
 
+    if( motionBlur ){
+      if( r.mbFrames == null ){
+        r.mbFrames = 0;
+      }
+
+      if( !r.drawingImage ){ // image loading frames don't count towards motion blur blurry frames
+        r.mbFrames++;
+      }
+      
+      if( r.mbFrames < 3 ){ // need several frames before even high quality motionblur
+        motionBlurFadeEffect = false;
+      }
+
+      // go to lower quality blurry frames when several m/b frames have been rendered (avoids flashing)
+      if( r.mbFrames > r.minMbLowQualFrames ){
+        //r.fullQualityMb = false;
+        r.motionBlurPxRatio = r.mbPxRBlurry;
+      }
+    } 
+
+    // console.log('mb: %s, N: %s, q: %s', motionBlur, r.mbFrames, r.motionBlurPxRatio);
+
     if( r.clearingMotionBlur ){
       //r.fullQualityMb = true; // TODO enable when doesn't cause scaled flashing issue
 
@@ -18916,11 +18933,21 @@ this.cytoscape = cytoscape;
 
     var startTime = Date.now();
 
-    //console.log('-- redraw --')
-
+    // console.log('-- redraw --')
+    
     function drawToContext(){ 
       // startTime = Date.now();
       // console.profile('draw' + startTime)
+      
+      // b/c drawToContext() may be async w.r.t. redraw(), keep track of last texture frame
+      // because a rogue async texture frame would clear needDraw
+      if( r.textureDrawLastFrame && !textureDraw ){
+        needDraw[CR.NODE] = true;
+        needDraw[CR.SELECT_BOX] = true;
+      }
+      
+      // console.log('drawToContext()');
+      // console.log( 'needDraw', needDraw[CR.NODE], needDraw[CR.DRAG], needDraw[CR.SELECT_BOX] );
 
       var edges = r.getCachedEdges();
       var coreStyle = cy.style()._private.coreStyle;
@@ -18944,7 +18971,7 @@ this.cytoscape = cytoscape;
       var viewportIsDiff = prevVp === undefined || vp.zoom !== prevVp.zoom || vp.pan.x !== prevVp.pan.x || vp.pan.y !== prevVp.pan.y;
 
       // we want the low quality motionblur only when the viewport is being manipulated etc (where it's not noticed)
-      if( !viewportIsDiff && !inNodeDragGesture ){
+      if( !viewportIsDiff && !(inNodeDragGesture && !hasCompoundNodes) ){
         r.motionBlurPxRatio = 1;
       }
 
@@ -19022,9 +19049,14 @@ this.cytoscape = cytoscape;
         }
       }
 
-      var textureDraw = r.textureOnViewport && !forcedContext && (r.pinching || r.hoverData.dragging || r.swipePanning || r.data.wheelZooming);
+      if( !textureDraw ){
+        r.textureDrawLastFrame = false;
+      }
 
       if( textureDraw ){
+        // console.log('textureDraw')
+        
+        r.textureDrawLastFrame = true;
 
         var bb;
 
@@ -19292,7 +19324,7 @@ this.cytoscape = cytoscape;
         var drawMotionBlur = function( cxt, txt, needClear ){
           cxt.setTransform(1, 0, 0, 1, 0, 0);
 
-          if( needClear ){
+          if( needClear || !motionBlurFadeEffect ){
             cxt.clearRect( 0, 0, r.canvasWidth, r.canvasHeight );
           } else {
             mbclear( cxt, 0, 0, r.canvasWidth, r.canvasHeight );
@@ -19369,7 +19401,7 @@ this.cytoscape = cytoscape;
           r.clearedForMotionBlur[CR.NODE] = false;
           r.clearedForMotionBlur[CR.DRAG] = false;
           r.motionBlur = false;
-          r.clearingMotionBlur = true;
+          r.clearingMotionBlur = !textureDraw;
           r.mbFrames = 0;
 
           needDraw[CR.NODE] = true; 
@@ -19378,6 +19410,8 @@ this.cytoscape = cytoscape;
           r.redraw();
         }, CanvasRenderer.motionBlurDelay);
       }
+
+      r.drawingImage = false;
 
     } // draw to context
 
@@ -19576,7 +19610,8 @@ this.cytoscape = cytoscape;
 ;(function($$){ 'use strict';
 
   var CanvasRenderer = $$('renderer', 'canvas');
-  var CRp = CanvasRenderer.prototype;
+  var CR = CanvasRenderer;
+  var CRp = CR.prototype;
 
   CRp.registerBinding = function(target, event, handler, useCapture){
     this.bindings.push({
@@ -19772,7 +19807,7 @@ this.cytoscape = cytoscape;
       r.invalidateContainerClientCoordsCache();
 
       r.matchCanvasSize(r.data.container);
-      r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+      r.data.canvasNeedsRedraw[CR.NODE] = true;
       r.redraw();
     }, 100 ) );
 
@@ -19818,6 +19853,8 @@ this.cytoscape = cytoscape;
       var draggedElements = r.dragData.possibleDragElements;
 
       r.hoverData.mdownPos = pos;
+      
+      var needsRedraw = r.data.canvasNeedsRedraw;
 
       var checkForTaphold = function(){
         r.hoverData.tapholdCancelled = false;
@@ -19911,8 +19948,8 @@ this.cytoscape = cytoscape;
                 near.trigger( grabEvent );
               }
 
-              r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
-              r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
+              needsRedraw[CR.NODE] = true;
+              needsRedraw[CR.DRAG] = true;
 
             }
 
@@ -19956,7 +19993,7 @@ this.cytoscape = cytoscape;
         // Selection box
         if ( near == null || near.isEdge() ) {
           select[4] = 1;
-          var timeUntilActive = Math.max( 0, CanvasRenderer.panOrBoxSelectDelay - (+new Date() - r.hoverData.downTime) );
+          var timeUntilActive = Math.max( 0, CR.panOrBoxSelectDelay - (+new Date() - r.hoverData.downTime) );
 
           clearTimeout( r.bgActiveTimeout );
 
@@ -19975,7 +20012,7 @@ this.cytoscape = cytoscape;
 
               //checkForTaphold();
 
-              r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+              needsRedraw[CR.SELECT_BOX] = true;
 
               r.redraw();
             }, timeUntilActive);
@@ -19989,7 +20026,7 @@ this.cytoscape = cytoscape;
 
             //checkForTaphold();
 
-            r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+            needsRedraw[CR.SELECT_BOX] = true;
 
             r.redraw();
           }
@@ -20043,6 +20080,7 @@ this.cytoscape = cytoscape;
       var zoom = cy.zoom();
       var pos = r.projectIntoViewport(e.clientX, e.clientY);
       var select = r.data.select;
+      var needsRedraw = r.data.canvasNeedsRedraw;
 
       var near = null;
       if( !r.hoverData.draggingEles ){
@@ -20191,7 +20229,7 @@ this.cytoscape = cytoscape;
       // Checks primary button down & out of time & mouse not moved much
       } else if(
           select[4] == 1 && (down == null || down.isEdge())
-          && ( !cy.boxSelectionEnabled() || (+new Date() - r.hoverData.downTime >= CanvasRenderer.panOrBoxSelectDelay) )
+          && ( !cy.boxSelectionEnabled() || (+new Date() - r.hoverData.downTime >= CR.panOrBoxSelectDelay) )
           //&& (Math.abs(select[3] - select[1]) + Math.abs(select[2] - select[0]) < 4)
           && !r.hoverData.selecting
           && rdist2 >= r.tapThreshold2
@@ -20209,7 +20247,7 @@ this.cytoscape = cytoscape;
           r.data.bgActivePosistion = undefined;
           r.hoverData.selecting = true;
 
-          r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+          needsRedraw[CR.SELECT_BOX] = true;
           r.redraw();
         }
 
@@ -20251,7 +20289,7 @@ this.cytoscape = cytoscape;
             var justStartedDrag = !r.dragData.didDrag;
 
             if( justStartedDrag ) {
-              r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+              needsRedraw[CR.NODE] = true;
             }
 
             r.dragData.didDrag = true; // indicate that we actually did drag the node
@@ -20296,7 +20334,7 @@ this.cytoscape = cytoscape;
             tcol.updateCompoundBounds();
             tcol.trigger('position drag');
 
-            r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
+            needsRedraw[CR.DRAG] = true;
             r.redraw();
 
           } else { // otherwise save drag delta for when we actually start dragging so the relative grab pos is constant
@@ -20328,9 +20366,10 @@ this.cytoscape = cytoscape;
       var near = r.findNearestElement(pos[0], pos[1], true);
       var draggedElements = r.dragData.possibleDragElements; var down = r.hoverData.down;
       var shiftDown = e.shiftKey;
+      var needsRedraw = r.data.canvasNeedsRedraw;
 
       if( r.data.bgActivePosistion ){
-        r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+        needsRedraw[CR.SELECT_BOX] = true;
         r.redraw();
       }
 
@@ -20384,7 +20423,7 @@ this.cytoscape = cytoscape;
           }).unselect();
 
           if (draggedElements.length > 0) {
-            r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+            needsRedraw[CR.NODE] = true;
           }
 
           r.dragData.possibleDragElements = draggedElements = [];
@@ -20492,7 +20531,7 @@ this.cytoscape = cytoscape;
               }
             }
 
-            r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+            needsRedraw[CR.NODE] = true;
 
           }
 
@@ -20502,10 +20541,10 @@ this.cytoscape = cytoscape;
           var newlySelected = [];
           var box = r.getAllInBox( select[0], select[1], select[2], select[3] );
 
-          r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+          needsRedraw[CR.SELECT_BOX] = true;
 
           if( box.length > 0 ) {
-            r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+            needsRedraw[CR.NODE] = true;
           }
 
           for( var i = 0; i < box.length; i++ ){
@@ -20533,17 +20572,19 @@ this.cytoscape = cytoscape;
 
         // Cancel drag pan
         if( r.hoverData.dragging ){
-          r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+          r.hoverData.dragging = false;
+          
+          needsRedraw[CR.SELECT_BOX] = true;
+          needsRedraw[CR.NODE] = true;
+          
           r.redraw();
         }
-
-        r.hoverData.dragging = false;
 
         if (!select[4]) {
           // console.log('free at end', draggedElements)
 
-          r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
-          r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+          needsRedraw[CR.DRAG] = true;
+          needsRedraw[CR.NODE] = true;
 
           for (var i=0; i < draggedElements.length; i++) {
 
@@ -20573,7 +20614,7 @@ this.cytoscape = cytoscape;
 
       select[4] = 0; r.hoverData.down = null;
 
-      //r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+      //r.data.canvasNeedsRedraw[CR.SELECT_BOX] = true;
 
 //      console.log('mu', pos[0], pos[1]);
 //      console.log('ss', select);
@@ -20608,7 +20649,7 @@ this.cytoscape = cytoscape;
         r.data.wheelTimeout = setTimeout(function(){
           r.data.wheelZooming = false;
 
-          r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+          r.data.canvasNeedsRedraw[CR.NODE] = true;
           r.redraw();
         }, 150);
 
@@ -20697,6 +20738,7 @@ this.cytoscape = cytoscape;
       var edges = r.getCachedEdges();
       var now = r.touchData.now;
       var earlier = r.touchData.earlier;
+      var needsRedraw = r.data.canvasNeedsRedraw;
 
       if (e.touches[0]) { var pos = r.projectIntoViewport(e.touches[0].clientX, e.touches[0].clientY); now[0] = pos[0]; now[1] = pos[1]; }
       if (e.touches[1]) { var pos = r.projectIntoViewport(e.touches[1].clientX, e.touches[1].clientY); now[2] = pos[0]; now[3] = pos[1]; }
@@ -20819,8 +20861,8 @@ this.cytoscape = cytoscape;
 
             var draggedEles = r.dragData.touchDragEles = [];
 
-            r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
-            r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
+            needsRedraw[CR.NODE] = true;
+            needsRedraw[CR.DRAG] = true;
 
             if( near.selected() ){
               // reset drag elements, since near will be added again
@@ -20881,7 +20923,7 @@ this.cytoscape = cytoscape;
             y: pos[1]
           };
 
-          r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+          needsRedraw[CR.SELECT_BOX] = true;
           r.redraw();
         }
 
@@ -20941,6 +20983,8 @@ this.cytoscape = cytoscape;
       var cy = r.data.cy;
       var now = r.touchData.now; var earlier = r.touchData.earlier;
       var zoom = cy.zoom();
+      
+      var needsRedraw = r.data.canvasNeedsRedraw;
 
       if (e.touches[0]) { var pos = r.projectIntoViewport(e.touches[0].clientX, e.touches[0].clientY); now[0] = pos[0]; now[1] = pos[1]; }
       if (e.touches[1]) { var pos = r.projectIntoViewport(e.touches[1].clientX, e.touches[1].clientY); now[2] = pos[0]; now[3] = pos[1]; }
@@ -20975,7 +21019,7 @@ this.cytoscape = cytoscape;
           r.touchData.cxt = false;
           if( r.touchData.start ){ r.touchData.start.unactivate(); r.touchData.start = null; }
           r.data.bgActivePosistion = undefined;
-          r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+          needsRedraw[CR.SELECT_BOX] = true;
 
           var cxtEvt = new $$.Event(e, {
             type: 'cxttapend',
@@ -20996,7 +21040,7 @@ this.cytoscape = cytoscape;
           cyPosition: { x: now[0], y: now[1] }
         });
         r.data.bgActivePosistion = undefined;
-        r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+        needsRedraw[CR.SELECT_BOX] = true;
 
         if( r.touchData.start ){
           r.touchData.start.trigger( cxtEvt );
@@ -21041,7 +21085,7 @@ this.cytoscape = cytoscape;
         this.lastThreeTouch = +new Date();
         r.touchData.selecting = true;
 
-        r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+        needsRedraw[CR.SELECT_BOX] = true;
 
         if( !select || select.length === 0 || select[0] === undefined ){
           select[0] = (now[0] + now[2] + now[4])/3;
@@ -21060,11 +21104,11 @@ this.cytoscape = cytoscape;
 
       } else if ( capture && e.touches[1] && cy.zoomingEnabled() && cy.panningEnabled() && cy.userZoomingEnabled() && cy.userPanningEnabled() ) { // two fingers => pinch to zoom
         r.data.bgActivePosistion = undefined;
-        r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+        needsRedraw[CR.SELECT_BOX] = true;
 
         var draggedEles = r.dragData.touchDragEles;
         if( draggedEles ){
-          r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
+          needsRedraw[CR.DRAG] = true;
 
           for( var i = 0; i < draggedEles.length; i++ ){
             draggedEles[i]._private.grabbed = false;
@@ -21146,7 +21190,7 @@ this.cytoscape = cytoscape;
             r.touchData.start._private.grabbed = false;
             r.touchData.start._private.rscratch.inDragLayer = false;
 
-            r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
+            needsRedraw[CR.DRAG] = true;
 
             r.touchData.start
               .trigger('free')
@@ -21218,14 +21262,14 @@ this.cytoscape = cytoscape;
 
             r.hoverData.draggingEles = true;
 
-            r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
+            needsRedraw[CR.DRAG] = true;
 
             if(
                  r.touchData.startPosition[0] == earlier[0]
               && r.touchData.startPosition[1] == earlier[1]
             ){
 
-              r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+              needsRedraw[CR.NODE] = true;
             }
 
             r.redraw();
@@ -21348,7 +21392,7 @@ this.cytoscape = cytoscape;
               };
             }
 
-            r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+            needsRedraw[CR.SELECT_BOX] = true;
 
             r.touchData.start = null;
           }
@@ -21395,6 +21439,8 @@ this.cytoscape = cytoscape;
       var zoom = cy.zoom();
       var now = r.touchData.now;
       var earlier = r.touchData.earlier;
+      
+      var needsRedraw = r.data.canvasNeedsRedraw;
 
       if (e.touches[0]) { var pos = r.projectIntoViewport(e.touches[0].clientX, e.touches[0].clientY); now[0] = pos[0]; now[1] = pos[1]; }
       if (e.touches[1]) { var pos = r.projectIntoViewport(e.touches[1].clientX, e.touches[1].clientY); now[2] = pos[0]; now[3] = pos[1]; }
@@ -21456,7 +21502,7 @@ this.cytoscape = cytoscape;
           select[3] = undefined;
           select[4] = 0;
 
-          r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+          needsRedraw[CR.SELECT_BOX] = true;
 
           // console.log(box);
           for( var i = 0; i< box.length; i++ ) {
@@ -21474,7 +21520,7 @@ this.cytoscape = cytoscape;
           newlySelCol.select();
 
           if( newlySelCol.length > 0 ) {
-            r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+            needsRedraw[CR.NODE] = true;
           } else {
             r.redraw();
           }
@@ -21492,7 +21538,7 @@ this.cytoscape = cytoscape;
 
       if (e.touches[2]) {
         r.data.bgActivePosistion = undefined;
-        r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+        needsRedraw[CR.SELECT_BOX] = true;
       } else if (e.touches[1]) {
 
       } else if (e.touches[0]) {
@@ -21501,7 +21547,7 @@ this.cytoscape = cytoscape;
       } else if (!e.touches[0]) {
 
         r.data.bgActivePosistion = undefined;
-        r.data.canvasNeedsRedraw[CanvasRenderer.SELECT_BOX] = true;
+        needsRedraw[CR.SELECT_BOX] = true;
 
         if (start != null ) {
 
@@ -21533,8 +21579,8 @@ this.cytoscape = cytoscape;
             }
           }
 
-          r.data.canvasNeedsRedraw[CanvasRenderer.DRAG] = true;
-          r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+          needsRedraw[CR.DRAG] = true;
+          needsRedraw[CR.NODE] = true;
 
           start
             .trigger(new $$.Event(e, {
@@ -21622,7 +21668,7 @@ this.cytoscape = cytoscape;
           updateStartStyle = true;
 
 
-          r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+          needsRedraw[CR.NODE] = true;
         }
 
         // Tap event, roughly same as mouse click event for touch
@@ -21672,7 +21718,7 @@ this.cytoscape = cytoscape;
 
       if( e.touches.length < 2 ){
         r.pinching = false;
-        r.data.canvasNeedsRedraw[CanvasRenderer.NODE] = true;
+        needsRedraw[CR.NODE] = true;
         r.redraw();
       }
 
@@ -21714,9 +21760,6 @@ this.cytoscape = cytoscape;
     draw: function(context, centerX, centerY, width, height) {
       nodeShapes['ellipse'].drawPath(context, centerX, centerY, width, height);
       context.fill();
-      
-//      console.log('drawing ellipse');
-//      console.log(arguments);
     },
     
     drawPath: function(context, centerX, centerY, width, height) {
@@ -21788,116 +21831,60 @@ this.cytoscape = cytoscape;
     }
   };
   
-  nodeShapes['triangle'] = {
-    points: $$.math.generateUnitNgonPointsFitToSquare(3, 0),
-    
-    draw: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygon(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['triangle'].points);
-    },
-    
-    drawPath: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygonPath(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['triangle'].points);
-    },
-    
-    intersectLine: function(nodeX, nodeY, width, height, x, y, padding) {
-      return $$.math.polygonIntersectLine(
-        x, y,
-        nodeShapes['triangle'].points,
-        nodeX,
-        nodeY,
-        width / 2, height / 2,
-        padding);
-    
-      /*
-      polygonIntersectLine(x, y, basePoints, centerX, centerY, 
-        width, height, padding);
-      */
+  function generatePolygon( name, points ){
+    nodeShapes[name] = {
+      points: points,
       
+      draw: function(context, centerX, centerY, width, height) {
+        renderer.drawPolygon(context,
+          centerX, centerY,
+          width, height,
+          nodeShapes[name].points);
+      },
       
-      /*
-      return renderer.polygonIntersectLine(
-        node, width, height,
-        x, y, nodeShapes['triangle'].points);
-      */
-    },
-    
-    intersectBox: function(
-      x1, y1, x2, y2, width, height, centerX, centerY, padding) {
+      drawPath: function(context, centerX, centerY, width, height) {
+        renderer.drawPolygonPath(context,
+          centerX, centerY,
+          width, height,
+          nodeShapes[name].points);
+      },
       
-      var points = nodeShapes['triangle'].points;
+      intersectLine: function(nodeX, nodeY, width, height, x, y, padding) {
+        return $$.math.polygonIntersectLine(
+            x, y,
+            nodeShapes[name].points,
+            nodeX,
+            nodeY,
+            width / 2, height / 2,
+            padding);
+      },
       
-      return $$.math.boxIntersectPolygon(
+      intersectBox: function(
         x1, y1, x2, y2,
-        points, width, height, centerX, centerY, [0, -1], padding);
-    },
-    
-    checkPoint: function(
-      x, y, padding, width, height, centerX, centerY) {
+        width, height, centerX, 
+        centerY, padding) {
+        
+        var points = nodeShapes[name].points;
+        
+        return $$.math.boxIntersectPolygon(
+          x1, y1, x2, y2,
+          points, width, height, centerX, 
+          centerY, [0, -1], padding);
+      },
       
-      return $$.math.pointInsidePolygon(
-        x, y, nodeShapes['triangle'].points,
-        centerX, centerY, width, height,
-        [0, -1], padding);
-    }
-  };
+      checkPoint: function(
+        x, y, padding, width, height, centerX, centerY) {
+        
+        return $$.math.pointInsidePolygon(x, y, nodeShapes[name].points,
+          centerX, centerY, width, height, [0, -1], padding);
+      }
+    };
+  }
   
-  nodeShapes['square'] = {
-    points: $$.math.generateUnitNgonPointsFitToSquare(4, 0),
-    
-    draw: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygon(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['square'].points);
-    },
-    
-    drawPath: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygonPath(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['square'].points);
-    },
-    
-    intersectLine: function(nodeX, nodeY, width, height, x, y, padding) {
-      return $$.math.polygonIntersectLine(
-          x, y,
-          nodeShapes['square'].points,
-          nodeX,
-          nodeY,
-          width / 2, height / 2,
-          padding);
-    },
-    
-    intersectBox: function(
-      x1, y1, x2, y2,
-      width, height, centerX, 
-      centerY, padding) {
-      
-      var points = nodeShapes['square'].points;
-      
-      return $$.math.boxIntersectPolygon(
-        x1, y1, x2, y2,
-        points, width, height, centerX, 
-        centerY, [0, -1], padding);
-    },
-    
-    checkPoint: function(
-      x, y, padding, width, height, centerX, centerY) {
-      
-      return $$.math.pointInsidePolygon(x, y, nodeShapes['square'].points,
-        centerX, centerY, width, height, [0, -1], padding);
-    }
-  };
+  generatePolygon( 'triangle', $$.math.generateUnitNgonPointsFitToSquare(3, 0) );
   
+  generatePolygon( 'square', $$.math.generateUnitNgonPointsFitToSquare(4, 0) );
   nodeShapes['rectangle'] = nodeShapes['square'];
-  
-  nodeShapes['octogon'] = {};
   
   nodeShapes['roundrectangle'] = {
     points: $$.math.generateUnitNgonPointsFitToSquare(4, 0),
@@ -22013,191 +22000,28 @@ this.cytoscape = cytoscape;
     }
   };
   
-  nodeShapes['pentagon'] = {
-    points: $$.math.generateUnitNgonPointsFitToSquare(5, 0),
-    
-    draw: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygon(context,
-        centerX, centerY,
-        width, height, nodeShapes['pentagon'].points);
-    },
-    
-    drawPath: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygonPath(context,
-        centerX, centerY,
-        width, height, nodeShapes['pentagon'].points);
-    },
-    
-    intersectLine: function(nodeX, nodeY, width, height, x, y, padding) {
-      return renderer.polygonIntersectLine(
-        x, y,
-        nodeShapes['pentagon'].points,
-        nodeX,
-        nodeY,
-        width / 2, height / 2,
-        padding);
-    },
-    
-    intersectBox: function(
-      x1, y1, x2, y2, width, height, centerX, centerY, padding) {
-      
-      var points = nodeShapes['pentagon'].points;
-      
-      return $$.math.boxIntersectPolygon(
-        x1, y1, x2, y2,
-        points, width, height, centerX, centerY, [0, -1], padding);
-    },
-    
-    checkPoint: function(
-      x, y, padding, width, height, centerX, centerY) {
-      
-      return $$.math.pointInsidePolygon(x, y, nodeShapes['pentagon'].points,
-        centerX, centerY, width, height, [0, -1], padding);
-    }
-  };
+  generatePolygon( 'diamond', [
+    0, 1,
+    1, 0,
+    0, -1,
+    -1, 0
+  ] );
   
-  nodeShapes['hexagon'] = {
-    points: $$.math.generateUnitNgonPointsFitToSquare(6, 0),
-    
-    draw: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygon(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['hexagon'].points);
-    },
-    
-    drawPath: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygonPath(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['hexagon'].points);
-    },
-    
-    intersectLine: function(nodeX, nodeY, width, height, x, y, padding) {
-      return $$.math.polygonIntersectLine(
-        x, y,
-        nodeShapes['hexagon'].points,
-        nodeX,
-        nodeY,
-        width / 2, height / 2,
-        padding);
-    },
-    
-    intersectBox: function(
-        x1, y1, x2, y2, width, height, centerX, centerY, padding) {
-        
-      var points = nodeShapes['hexagon'].points;
-      
-      return $$.math.boxIntersectPolygon(
-        x1, y1, x2, y2,
-        points, width, height, centerX, centerY, [0, -1], padding);
-    },
-    
-    checkPoint: function(
-      x, y, padding, width, height, centerX, centerY) {
-      
-      return $$.math.pointInsidePolygon(x, y, nodeShapes['hexagon'].points,
-        centerX, centerY, width, height, [0, -1], padding);
-    }
-  };
+  generatePolygon( 'pentagon', $$.math.generateUnitNgonPointsFitToSquare(5, 0) );
   
-  nodeShapes['heptagon'] = {
-    points: $$.math.generateUnitNgonPointsFitToSquare(7, 0),
-    
-    draw: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygon(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['heptagon'].points);
-    },
-    
-    drawPath: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygonPath(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['heptagon'].points);
-    },
-    
-    intersectLine: function(nodeX, nodeY, width, height, x, y, padding) {
-      return renderer.polygonIntersectLine(
-        x, y,
-        nodeShapes['heptagon'].points,
-        nodeX,
-        nodeY,
-        width / 2, height / 2,
-        padding);
-    },
-    
-    intersectBox: function(
-        x1, y1, x2, y2, width, height, centerX, centerY, padding) {
-      
-      var points = nodeShapes['heptagon'].points;
-      
-      return renderer.boxIntersectPolygon(
-        x1, y1, x2, y2,
-        points, width, height, centerX, centerY, [0, -1], padding);
-    },
-
-    checkPoint: function(
-      x, y, padding, width, height, centerX, centerY) {
-      
-      return $$.math.pointInsidePolygon(x, y, nodeShapes['heptagon'].points,
-        centerX, centerY, width, height, [0, -1], padding);
-    }
-  };
+  generatePolygon( 'hexagon', $$.math.generateUnitNgonPointsFitToSquare(6, 0) );
   
-  nodeShapes['octagon'] = {
-    points: $$.math.generateUnitNgonPointsFitToSquare(8, 0),
-    
-    draw: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygon(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['octagon'].points);
-    },
-    
-    drawPath: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygonPath(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['octagon'].points);
-    },
-    
-    intersectLine: function(nodeX, nodeY, width, height, x, y, padding) {
-      return renderer.polygonIntersectLine(
-        x, y,
-        nodeShapes['octagon'].points,
-        nodeX,
-        nodeY,
-        width / 2, height / 2,
-        padding);
-    },
-    
-    intersectBox: function(
-        x1, y1, x2, y2, width, height, centerX, centerY, padding) {
-      
-      var points = nodeShapes['octagon'].points;
-      
-      return renderer.boxIntersectPolygon(
-          x1, y1, x2, y2,
-          points, width, height, centerX, centerY, [0, -1], padding);
-    },
-    
-    checkPoint: function(
-      x, y, padding, width, height, centerX, centerY) {
-      
-      return $$.math.pointInsidePolygon(x, y, nodeShapes['octagon'].points,
-        centerX, centerY, width, height, [0, -1], padding);
-    }
-  };
+  generatePolygon( 'heptagon', $$.math.generateUnitNgonPointsFitToSquare(7, 0) );
   
+  generatePolygon( 'octagon', $$.math.generateUnitNgonPointsFitToSquare(8, 0) );
+    
   var star5Points = new Array(20);
   {
     var outerPoints = $$.math.generateUnitNgonPoints(5, 0);
     var innerPoints = $$.math.generateUnitNgonPoints(5, Math.PI / 5);
     
-//    console.log(outerPoints);
-//    console.log(innerPoints);
+  //  console.log(outerPoints);
+  //  console.log(innerPoints);
     
     // Outer radius is 1; inner radius of star is smaller
     var innerRadius = 0.5 * (3 - Math.sqrt(5));
@@ -22216,55 +22040,12 @@ this.cytoscape = cytoscape;
       star5Points[i*4+3] = innerPoints[i*2+1];
     }
     
-//    console.log(star5Points);
+  //  console.log(star5Points);
   }
 
   star5Points = $$.math.fitPolygonToSquare( star5Points );
   
-  nodeShapes['star5'] = nodeShapes['star'] = {
-    points: star5Points,
-    
-    draw: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygon(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['star5'].points);
-    },
-    
-    drawPath: function(context, centerX, centerY, width, height) {
-      renderer.drawPolygonPath(context,
-        centerX, centerY,
-        width, height,
-        nodeShapes['star5'].points);
-    },
-    
-    intersectLine: function(nodeX, nodeY, width, height, x, y, padding) {
-      return renderer.polygonIntersectLine(
-        x, y,
-        nodeShapes['star5'].points,
-        nodeX,
-        nodeY,
-        width / 2, height / 2,
-        padding);
-    },
-    
-    intersectBox: function(
-        x1, y1, x2, y2, width, height, centerX, centerY, padding) {
-      
-      var points = nodeShapes['star5'].points;
-      
-      return renderer.boxIntersectPolygon(
-          x1, y1, x2, y2,
-          points, width, height, centerX, centerY, [0, -1], padding);
-    },
-    
-    checkPoint: function(
-      x, y, padding, width, height, centerX, centerY) {
-      
-      return $$.math.pointInsidePolygon(x, y, nodeShapes['star5'].points,
-        centerX, centerY, width, height, [0, -1], padding);
-    }
-  };
+  generatePolygon( 'star', star5Points );
 
 })( cytoscape );
 
@@ -22916,14 +22697,15 @@ this.cytoscape = cytoscape;
       }
 
       var eleDepth = ele._private.scratch.breadthfirst.depth;
-      var neighbors = ele.neighborhood().nodes();
+      var neighbors = ele.neighborhood().nodes().not(':parent');
       var percent = 0;
       var samples = 0;
 
       for( var i = 0; i < neighbors.length; i++ ){
         var neighbor = neighbors[i];
-        var index = neighbor._private.scratch.breadthfirst.index;
-        var depth = neighbor._private.scratch.breadthfirst.depth;
+        var bf = neighbor._private.scratch.breadthfirst;
+        var index = bf.index;
+        var depth = bf.depth;
         var nDepth = depths[depth].length;
 
         if( eleDepth > depth || eleDepth === 0 ){ // only get influenced by elements above
@@ -25557,6 +25339,10 @@ this.cytoscape = cytoscape;
       var simulationBounds = options.boundingBox ? $$.util.makeBoundingBox( options.boundingBox ) : null;
       var padding = options.padding;
       var simBBFactor = Math.max( 1, Math.log(nodes.length) * 0.8 );
+      
+      if( nodes.length < 100 ){
+        simBBFactor /= 2;
+      }
 
       layout.trigger( {
         type: 'layoutstart',
