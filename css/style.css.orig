@@ -195,7 +195,14 @@ button:active {
 	z-index: 1;
 	padding: 0 0.5em;
 	overflow-y: auto;
+	overflow-x: auto;
 	-webkit-overflow-scrolling: touch;
+	white-space: nowrap;
+	background: #fff;
+	z-index: 999999;
+	opacity: 1;
+	
+	transition: opacity ease-out 150ms;
 }
 
 #navigation .toc {
@@ -532,7 +539,8 @@ h2 {
 	font-weight: 600;
 }
 
-h2 a {
+h2 a,
+.function > .name > a {
 	font-size: 0.8em;
 }
 
@@ -567,7 +575,7 @@ a,
 	padding: 0;
 	margin: 0;
 	color: inherit;
-	border-bottom: 2px solid rgba(65, 131, 196, 0.333);
+	border-bottom: 2px solid rgba(65, 131, 196, 0.5);
 	text-decoration: none;
 	border-radius: 0.125em;
 	cursor: pointer;
@@ -575,7 +583,7 @@ a,
 
 a.light,
 a.toclink {
-	border-bottom: 2px solid rgba(65, 131, 196, 0.166);
+	border-bottom: 2px solid rgba(65, 131, 196, 0.2);
 }
 
 .button {
@@ -722,6 +730,10 @@ pre code {
 	font-size: 0.8em;
 }
 
+.args-summary {
+	font-size: 0.8em;
+}
+
 .args .name {
 	margin-right: 0.25em;
 }
@@ -742,6 +754,16 @@ pre code {
 	margin: 0.25em;
 }
 
+#open-navigation {
+	display: none;
+	position: fixed;
+	right: 0;
+	top: 0;
+	margin: 1em 0.75em;
+	padding: 0 0.25em;
+	cursor: pointer;
+}
+
 
 @media only screen 
 and (max-width : 800px) {
@@ -760,11 +782,16 @@ and (max-width : 800px) {
 	}
 
 	#navigation {
-		display: none;
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	#content {
 		margin-left: 0.5em;
+	}
+	
+	#open-navigation {
+		display: block;
 	}
 
 }
@@ -774,12 +801,18 @@ and (max-width : 800px)
 and (orientation:landscape) {
 
 	#navigation {
-		display: block;
+		opacity: 1;
+		pointer-events: auto;
 	}
 
 	#content {
 		margin-left: 16em;
 	}
+	
+	#open-navigation {
+		display: none;
+	}
+
 
 }
 
@@ -792,3 +825,26 @@ and (orientation:portrait) {
 	}
 
 }
+<<<<<<< HEAD
+
+#open-navigation-bg {
+	position: fixed;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 9999;
+	opacity: 0;
+	pointer-events: none;
+	
+	transition: opacity ease-out 150ms;
+}
+
+.navigation-open #open-navigation-bg,
+.navigation-open #navigation {
+	opacity: 1;
+	pointer-events: auto;
+}
+=======
+>>>>>>> 82a123d... add nrnb donate info
