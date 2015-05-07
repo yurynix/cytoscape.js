@@ -18,7 +18,7 @@ cy.style()
 
   // and then define new styles
   .selector('node')
-  	.style('background-color', 'magenta')
+  	.css('background-color', 'magenta')
 
   // ...
 
@@ -30,7 +30,7 @@ You can also add to the existing stylesheet:
 ```js
 cy.style()
   .selector('node')
-    .style({
+    .css({
       'background-color': 'yellow'
     })
 
@@ -45,7 +45,7 @@ cy.style()
   .fromJson([
     {
       selector: 'node',
-      style: {
+      css: {
         'background-color': 'red'
       }
     }
@@ -65,11 +65,4 @@ cy.style()
 
   .update() // update the elements in the graph with the new style
 ;
-```
-
-You can also get the current style as JSON:
-
-```js
-var styleJson = cy.style().json(); 
-var serializedJson = JSON.stringify( styleJson );
 ```

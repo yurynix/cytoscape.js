@@ -7,16 +7,8 @@ $(function(){
   }, 100);
 
   // fix for webkit
-  $('#navigation').on('wheel mousewheel DOMMouseScroll MozMousePixelScroll scroll', function(e){
+  $('#navigation').on('wheel mousewheel DOMMouseScroll MozMousePixelScroll', function(e){
     e.stopPropagation();
-  });
-
-  $('#open-navigation').on('click', function(){
-    $('body').addClass('navigation-open');
-  });
-
-  $('#open-navigation-bg, #navigation a').on('click', function(){
-    $('body').removeClass('navigation-open');
   });
 
 

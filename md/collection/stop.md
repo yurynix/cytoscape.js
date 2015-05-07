@@ -2,7 +2,7 @@
 
 ```js
 cy.nodes().animate({
-  style: { 'background-color': 'cyan' }
+  css: { 'background-color': 'cyan' }
 }, {
   duration: 5000,
   complete: function(){

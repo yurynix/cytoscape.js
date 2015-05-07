@@ -5,8 +5,7 @@ This function returns an object of the following form:
 
 ```js
 {
-  /* function that computes the rank of a given node (either object or selector string) */
-  rank: function( node ){ /* impl */ } 
+  rank /* function that computes the rank of a given node (either object or selector string) */
 }
 ```
 
