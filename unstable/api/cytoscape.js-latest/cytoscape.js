@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.4.0-pre.
+ * This file is part of Cytoscape.js 2.4.0.
  * 
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -29,7 +29,7 @@ var cytoscape;
     return cytoscape.init.apply(cytoscape, arguments);
   };
 
-  $$.version = '2.4.0-pre';
+  $$.version = '2.4.0';
   
   // allow functional access to cytoscape.js
   // e.g. var cyto = $.cytoscape({ selector: "#foo", ... });
@@ -4913,7 +4913,7 @@ this.cytoscape = cytoscape;
       lineStyle: { enums: ['solid', 'dotted', 'dashed'] },
       borderStyle: { enums: ['solid', 'dotted', 'dashed', 'double'] },
       curveStyle: { enums: ['bezier', 'unbundled-bezier', 'haystack'] },
-      fontFamily: { regex: '^([\\w- ]+(?:\\s*,\\s*[\\w- ]+)*)$' },
+      fontFamily: { regex: '^([\\w- \\"]+(?:\\s*,\\s*[\\w- \\"]+)*)$' },
       fontVariant: { enums: ['small-caps', 'normal'] },
       fontStyle: { enums: ['italic', 'normal', 'oblique'] },
       fontWeight: { enums: ['normal', 'bold', 'bolder', 'lighter', '100', '200', '300', '400', '500', '600', '800', '900', 100, 200, 300, 400, 500, 600, 700, 800, 900] },
@@ -4922,6 +4922,7 @@ this.cytoscape = cytoscape;
       textWrap: { enums: ['none', 'wrap'] },
       textBackgroundShape: { enums: ['rectangle', 'roundrectangle']},
       nodeShape: { enums: ['rectangle', 'roundrectangle', 'ellipse', 'triangle', 'square', 'pentagon', 'hexagon', 'heptagon', 'octagon', 'star', 'diamond', 'vee', 'rhomboid'] },
+      compoundIncludeLabels: { enums: ['include', 'exclude'] },
       arrowShape: { enums: ['tee', 'triangle', 'triangle-tee', 'triangle-backcurve', 'half-triangle-overshot', 'square', 'circle', 'diamond', 'none'] },
       arrowFill: { enums: ['filled', 'hollow'] },
       display: { enums: ['element', 'none'] },
@@ -5035,6 +5036,7 @@ this.cytoscape = cytoscape;
       { name: 'padding-top', type: t.size },
       { name: 'padding-bottom', type: t.size },
       { name: 'position', type: t.position },
+      { name: 'compound-sizing-wrt-labels', type: t.compoundIncludeLabels },
 
       // edge line
       { name: 'line-style', type: t.lineStyle },
@@ -5183,6 +5185,7 @@ this.cytoscape = cytoscape;
           'padding-left': 0,
           'padding-right': 0,
           'position': 'origin',
+          'compound-sizing-wrt-labels': 'include',
 
 
           // node pie bg
@@ -12599,7 +12602,8 @@ this.cytoscape = cytoscape;
       function update( parent ){
         var children = parent.children();
         var style = parent._private.style;
-        var bb = children.boundingBox({ includeLabels: true, includeEdges: true });
+        var includeLabels = style['compound-sizing-wrt-labels'].value === 'include';
+        var bb = children.boundingBox({ includeLabels: includeLabels, includeEdges: true });
         var padding = {
           top: style['padding-top'].pxValue,
           bottom: style['padding-bottom'].pxValue,
@@ -19234,9 +19238,10 @@ this.cytoscape = cytoscape;
       if( needDraw[CR.NODE] || drawAllLayers || drawOnlyNodeLayer || needMbClear[CR.NODE] ){
         // console.log('NODE', needDraw[CR.NODE], needMbClear[CR.NODE]);
 
-        var context = forcedContext || ( motionBlur && !needMbClear[CR.NODE] ? r.data.bufferContexts[ CR.MOTIONBLUR_BUFFER_NODE ] : data.contexts[CR.NODE] );
+        var useBuffer = motionBlur && !needMbClear[CR.NODE] && mbPxRatio !== 1;
+        var context = forcedContext || ( useBuffer ? r.data.bufferContexts[ CR.MOTIONBLUR_BUFFER_NODE ] : data.contexts[CR.NODE] );
 
-        setContextTransform( context ); //, motionBlur && !needMbClear[CR.NODE] ? 'motionBlur' : undefined );
+        setContextTransform( context, motionBlur && !useBuffer ? 'motionBlur' : undefined );
         drawElements(eles.nondrag, context);
         
         if( !drawAllLayers && !motionBlur ){
@@ -19247,9 +19252,10 @@ this.cytoscape = cytoscape;
       if ( !drawOnlyNodeLayer && (needDraw[CR.DRAG] || drawAllLayers || needMbClear[CR.DRAG]) ) {
         // console.log('DRAG');
 
-        var context = forcedContext || ( motionBlur && !needMbClear[CR.DRAG] ? r.data.bufferContexts[ CR.MOTIONBLUR_BUFFER_DRAG ] : data.contexts[CR.DRAG] );
+        var useBuffer = motionBlur && !needMbClear[CR.DRAG] && mbPxRatio !== 1;
+        var context = forcedContext || ( useBuffer ? r.data.bufferContexts[ CR.MOTIONBLUR_BUFFER_DRAG ] : data.contexts[CR.DRAG] );
         
-        setContextTransform( context ); //, motionBlur && !needMbClear[CR.NODE] ? 'motionBlur' : undefined );
+        setContextTransform( context, motionBlur && !useBuffer ? 'motionBlur' : undefined );
         drawElements(eles.drag, context);
         
         if( !drawAllLayers && !motionBlur ){
@@ -19335,7 +19341,7 @@ this.cytoscape = cytoscape;
       }
 
       // motionblur: blit rendered blurry frames
-      if( motionBlur ){
+      if( motionBlur && mbPxRatio !== 1 ){
         var cxtNode = data.contexts[CR.NODE];
         var txtNode = r.data.bufferCanvases[ CR.MOTIONBLUR_BUFFER_NODE ];
 
