@@ -1,5 +1,5 @@
 {
-  "version": "2.4.2",
+  "version": "2.4.3",
 
   "fnArgLinks": {
     "selector": "#selectors",
@@ -18,7 +18,9 @@
     "renderedPosition": "#notation/position",
     "pan": "#notation/position",
     "panBy": "#notation/position",
-    "css": "#style"
+    "css": "#style",
+    "style": "#style",
+    "stylesheet": "#style"
   },
 
   "sections": [
@@ -27,6 +29,7 @@
       "md": "demos",
       "demos": [
         { "name": "Tokyo railways", "id": "f64e811fc3311414e083" },
+        { "name": "Wine & cheese", "id": "cde4db55e581d10405f5" },
         { "name": "Performance tuning", "id": "57e7cc43342193d9d21a" },
         { "name": "qTip extension", "id": "546dd8ca4872cc87106a" },
         { "name": "Animated BFS", "id": "7e2f4d29ff7ef1a1bba5" },
@@ -796,7 +799,7 @@
                   "args": [
                     {
                       "name": "stylesheet",
-                      "descr": "Either a `cytoscape.Stylesheet` object, a string stylesheet, or a JSON stylesheet (the same formats accepted for `options.style` at initialisation)."
+                      "descr": "Either a `cytoscape.stylesheet()` object, a string stylesheet, or a JSON stylesheet (the same formats accepted for `options.style` at initialisation)."
                     }
                   ]
                 }
@@ -2668,7 +2671,7 @@
                   "args": [
                     { "name": "options", "fields": [
                       { "name": "roots", "descr": "The root nodes (selector or collection) to start the search from." },
-                      { "name": "visit: function(i, depth)", "descr": "A handler function that is called when a node is visited in the search.  The handler returns `true` when it finds the desired node, and it returns `false` to cancel the search.", "optional": true, "fields": [
+                      { "name": "visit: function(i, depth, v, e, u)", "descr": "A handler function that is called when a node is visited in the search.  The handler returns `true` when it finds the desired node, and it returns `false` to cancel the search.", "optional": true, "fields": [
                         { "name": "i", "descr": "The index indicating this node is the ith visited node." },
                         { "name": "depth", "descr": "How many edge hops away this node is from the root nodes." },
                         { "name": "v", "descr": "The current node." },
@@ -2682,7 +2685,7 @@
                 {
                   "args": [
                     { "name": "roots", "descr": "The root nodes (selector or collection) to start the search from." },
-                    { "name": "function(i, depth)", "descr": "A handler function that is called when a node is visited in the search.  The handler returns `true` when it finds the desired node, and it returns `false` to cancel the search.", "optional": true, "fields": [
+                    { "name": "function(i, depth, v, e, u)", "descr": "A handler function that is called when a node is visited in the search.  The handler returns `true` when it finds the desired node, and it returns `false` to cancel the search.", "optional": true, "fields": [
                       { "name": "i", "descr": "The index indicating this node is the ith visited node." },
                       { "name": "depth", "descr": "How many edge hops away this node is from the root nodes." },
                       { "name": "v", "descr": "The current node." },
@@ -2855,7 +2858,8 @@
                     { "name": "options", "fields": [
                       { "name": "root", "descr": "The root node (selector or collection) for which the centrality calculation is made." },
                       { "name": "weight: function(edge)", "descr": "A function that returns the weight for `this` edge.", "optional": true },
-                      { "name": "directed", "descr": "A boolean indicating whether the algorithm operates on edges in a directed manner from source to target (`true`) or whether the algorithm operates in an undirected manner (`false`, default).", "optional": true }
+                      { "name": "directed", "descr": "A boolean indicating whether the algorithm operates on edges in a directed manner from source to target (`true`) or whether the algorithm operates in an undirected manner (`false`, default).", "optional": true },
+                      { "name": "harmonic", "descr": "A boolean indicating whether the algorithm calculates the harmonic mean (`true`, default) or the arithmetic mean (`false`) of distances.  The harmonic mean is very useful for graphs that are not strongly connected.", "optional": true }
                     ] }
                   ]
                 }
@@ -2872,7 +2876,8 @@
                   "args": [
                     { "name": "options", "fields": [
                       { "name": "weight: function(edge)", "descr": "A function that returns the weight for `this` edge.", "optional": true },
-                      { "name": "directed", "descr": "A boolean indicating whether the algorithm operates on edges in a directed manner from source to target (`true`) or whether the algorithm operates in an undirected manner (`false`, default).", "optional": true }
+                      { "name": "directed", "descr": "A boolean indicating whether the algorithm operates on edges in a directed manner from source to target (`true`) or whether the algorithm operates in an undirected manner (`false`, default).", "optional": true },
+                      { "name": "harmonic", "descr": "A boolean indicating whether the algorithm calculates the harmonic mean (`true`, default) or the arithmetic mean (`false`) of distances.  The harmonic mean is very useful for graphs that are not strongly connected.", "optional": true }
                     ] }
                   ]
                 }
