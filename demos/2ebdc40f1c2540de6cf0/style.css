@@ -52,3 +52,11 @@ a,
 a:hover {
   color: #62daea;
 }
+
+.label {
+  display: inline-block;
+}
+
+.slider {
+  display: block;
+}

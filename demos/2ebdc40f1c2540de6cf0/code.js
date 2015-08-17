@@ -12,8 +12,8 @@ $(function(){ // on dom ready
 
   var params = {
     name: 'cola',
-    nodeSpacing: 20,
-    edgeLengthVal: 10,
+    nodeSpacing: 10,
+    edgeLengthVal: 35,
     animate: true,
     randomize: false,
     maxSimulationTime: 1500
@@ -94,13 +94,13 @@ $(function(){ // on dom ready
       min: opts.min,
       max: opts.max,
       value: params[ opts.param ]
-    }).on('slide', _.debounce( function(){
+    }).on('slide', _.throttle( function(){
       params[ opts.param ] = p.getValue();
 
       layout.stop();
       layout = makeLayout();
       layout.run();
-    }, 50 ) ).data('slider');
+    }, 16 ) ).data('slider');
   }
 
   function makeButton( opts ){
