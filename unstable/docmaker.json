@@ -1,5 +1,5 @@
 {
-  "version": "2.4.0",
+  "version": "2.5.0-unstable",
 
   "fnArgLinks": {
     "selector": "#selectors",
@@ -9,6 +9,8 @@
     "eleObj": "#notation/elements-json",
     "eleObjs": "#notation/elements-json",
     "elesArray": "#notation/elements-json",
+    "elesJson": "#notation/elements-json",
+    "eleJson": "#notation/elements-json",
     "ele": "#collection",
     "eles": "#collection",
     "root": "#collection",
@@ -18,7 +20,11 @@
     "renderedPosition": "#notation/position",
     "pan": "#notation/position",
     "panBy": "#notation/position",
-    "css": "#style"
+    "css": "#style",
+    "style": "#style",
+    "stylesheet": "#style",
+    "easing": "#style/transition-animation",
+    "cyJson": "#core/initialisation"
   },
 
   "sections": [
@@ -26,7 +32,9 @@
       "name": "Demos",
       "md": "demos",
       "demos": [
+        { "name": "Cola.js gene-gene graph", "id": "2ebdc40f1c2540de6cf0" },
         { "name": "Tokyo railways", "id": "f64e811fc3311414e083" },
+        { "name": "Wine & cheese", "id": "cde4db55e581d10405f5" },
         { "name": "Performance tuning", "id": "57e7cc43342193d9d21a" },
         { "name": "qTip extension", "id": "546dd8ca4872cc87106a" },
         { "name": "Animated BFS", "id": "7e2f4d29ff7ef1a1bba5" },
@@ -45,6 +53,8 @@
     { "name": "Introduction", "md": "intro" },
 
     { "name": "Notation", "md": "notation" },
+
+    { "name": "Getting started", "md": "getting-started" },
 
     {
       "name": "Core",
@@ -344,12 +354,6 @@
                   ]
                 }
               ]
-            },
-
-            {
-              "name": "cy.initrender",
-              "descr": "Get whether the initial render event has occurred (useful for plugins etc).",
-              "md": "core/initrender"
             }
 
 
@@ -673,7 +677,7 @@
                 {
                   "args": [
                     {
-                      "name": "anis",
+                      "name": "options",
                       "descr": "An object containing the details of the animation.",
                       "fields": [
                         { "name": "zoom", "descr": "A zoom level to which the graph will be animated." },
@@ -693,24 +697,55 @@
                           "fields": [
                             { "name": "eles", "descr": "Elements or a selector to which the viewport will be centred." }
                           ]
-                        }
-                      ]
-                    },
-
-                    {
-                      "name": "options",
-                      "descr": "An object containing animation options.",
-                      "fields": [
+                        },
                         { "name": "duration", "descr": "The duration of the animation in milliseconds." },
                         { "name": "queue", "descr": "A boolean indicating whether to queue the animation." },
                         { "name": "complete", "descr": "A function to call when the animation is done." },
-                        { "name": "step", "descr": "A function to call each time the animation steps." }
+                        { "name": "step", "descr": "A function to call each time the animation steps." },
+                        { "name": "easing", "descr": "A [`transition-timing-function`](#style/transition-animation) easing style string that shapes the animation progress curve." }
                       ]
                     }
                   ]
                 }
               ],
               "md": "core/animate"
+            },
+
+            {
+              "name": "cy.animation",
+              "descr": "Get an [animation](#animations) of the viewport.",
+              "formats": [
+                {
+                  "args": [
+                    {
+                      "name": "options",
+                      "descr": "An object containing the details of the animation.",
+                      "fields": [
+                        { "name": "zoom", "descr": "A zoom level to which the graph will be animated." },
+                        { "name": "pan", "descr": "A panning position to which the graph will be animated." },
+                        { "name": "panBy", "descr": "A relative panning position to which the graph will be animated." },
+                        {
+                          "name": "fit",
+                          "descr": "An object containing fitting options from which the graph will be animated.",
+                          "fields": [
+                            { "name": "eles", "descr": "Elements or a selector to which the viewport will be fitted." },
+                            { "name": "padding", "descr": "Padding to use with the fitting." }
+                          ]
+                        },
+                        {
+                          "name": "center",
+                          "descr": "An object containing centring options from which the graph will be animated.",
+                          "fields": [
+                            { "name": "eles", "descr": "Elements or a selector to which the viewport will be centred." }
+                          ]
+                        },
+                        { "name": "duration", "descr": "The duration of the animation in milliseconds." },
+                        { "name": "easing", "descr": "A [`transition-timing-function`](#style/transition-animation) easing style string that shapes the animation progress curve." }
+                      ]
+                    }
+                  ]
+                }
+              ]
             },
 
             {
@@ -725,6 +760,18 @@
                 }
               ],
               "md": "core/delay"
+            },
+
+            {
+              "name": "cy.delayAnimation",
+              "descr": "Get a delay [animation](#animations) of the viewport.",
+              "formats": [
+                {
+                  "args": [
+                    { "name": "duration", "descr": "How long the delay should be in milliseconds." }
+                  ]
+                }
+              ]
             },
 
             {
@@ -802,7 +849,7 @@
                   "args": [
                     {
                       "name": "stylesheet",
-                      "descr": "Either a `cytoscape.Stylesheet` object, a string stylesheet, or a JSON stylesheet (the same formats accepted for `options.style` at initialisation)."
+                      "descr": "Either a `cytoscape.stylesheet()` object, a string stylesheet, or a JSON stylesheet (the same formats accepted for `options.style` at initialisation)."
                     }
                   ]
                 }
@@ -838,7 +885,7 @@
               ],
               "md": "core/png"
             },
-            
+
             {
               "name": "cy.jpg",
               "pureAliases": ["cy.jpeg"],
@@ -865,7 +912,20 @@
 
             {
               "name": "cy.json",
-              "descr": "Export the graph as JSON, the same format used at initialisation.",
+              "descr": "Import or export the graph in the same JSON format used at initialisation.",
+              "formats": [
+                {
+                  "descr": "Export the graph as JSON.",
+                  "args": []
+                },
+
+                {
+                  "descr": "Import the graph as JSON, updating only the fields specified.",
+                  "args": [
+                    { "name": "cyJson", "descr": "The object with the fields corresponding to the states that should be changed." }
+                  ]
+                }
+              ],
               "md": "core/json"
             }
           ]
@@ -884,7 +944,7 @@
           "fns": [
             {
               "name": "eles.remove",
-              "descr": "Remove the elements from the graph.",
+              "descr": "Remove the elements from the graph, and return all elements removed by this call.",
               "md": "collection/remove"
             },
 
@@ -1177,7 +1237,20 @@
 
             {
               "name": "ele.json",
-              "descr": "Get the element's plain JavaScript object representation.",
+              "descr": "Get or mutate the element's plain JavaScript object representation.",
+              "formats": [
+                {
+                  "descr": "Get the element's JSON.",
+                  "args": []
+                },
+
+                {
+                  "descr": "Mutate the element's state as specified.",
+                  "args": [
+                    { "name": "eleJson", "descr": "For each field in the object, the element's state is mutated as specified." }
+                  ]
+                }
+              ],
               "md": "collection/json"
             },
 
@@ -1590,6 +1663,35 @@
                 }
               ],
               "md": "collection/makeLayout"
+            },
+
+            {
+              "name": "nodes.layoutPositions",
+              "descr": "Position the nodes for a discrete/synchronous layout.",
+              "extFn": true,
+              "formats": [
+                {
+                  "args": [
+                    {
+                      "name": "layout",
+                      "descr": "The layout."
+                    },
+                    {
+                      "name": "options",
+                      "descr": "The layout options object."
+                    },
+                    {
+                      "name": "function(i, ele)",
+                      "descr": "A function that returns the new position for the specified node.",
+                      "fields": [
+                        { "name": "i", "descr": "The index of the current node while iterating over the nodes in the layout." },
+                        { "name": "ele", "descr": "The node being iterated over for which the function should return a position to set." }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "md": "collection/layout"
             }
           ]
         },
@@ -1801,29 +1903,45 @@
                 {
                   "args": [
                     {
-                      "name": "anis",
+                      "name": "options",
                       "descr": "An object containing the details of the animation.",
                       "fields": [
                         { "name": "position", "descr": "A position to which the elements will be animated." },
                         { "name": "renderedPosition", "descr": "A rendered position to which the elements will be animated." },
-                        { "name": "style", "descr": "An object containing name-value pairs of style properties to animate." }
-                      ]
-                    },
-
-                    {
-                      "name": "options",
-                      "descr": "An object containing animation options.",
-                      "fields": [
+                        { "name": "style", "descr": "An object containing name-value pairs of style properties to animate." },
                         { "name": "duration", "descr": "The duration of the animation in milliseconds." },
                         { "name": "queue", "descr": "A boolean indicating whether to queue the animation." },
                         { "name": "complete", "descr": "A function to call when the animation is done." },
-                        { "name": "step", "descr": "A function to call each time the animation steps." }
+                        { "name": "step", "descr": "A function to call each time the animation steps." },
+                        { "name": "easing", "descr": "A [`transition-timing-function`](#style/transition-animation) easing style string that shapes the animation progress curve." }
                       ]
                     }
                   ]
                 }
               ],
               "md": "collection/animate"
+            },
+
+            {
+              "name": "ele.animation",
+              "descr": "Get an [animation](#animations) for the element.",
+              "formats": [
+                {
+                  "args": [
+                    {
+                      "name": "options",
+                      "descr": "An object containing the details of the animation.",
+                      "fields": [
+                        { "name": "position", "descr": "A position to which the elements will be animated." },
+                        { "name": "renderedPosition", "descr": "A rendered position to which the elements will be animated." },
+                        { "name": "style", "descr": "An object containing name-value pairs of style properties to animate." },
+                        { "name": "duration", "descr": "The duration of the animation in milliseconds." },
+                        { "name": "easing", "descr": "A [`transition-timing-function`](#style/transition-animation) easing style string that shapes the animation progress curve." }
+                      ]
+                    }
+                  ]
+                }
+              ]
             },
 
             {
@@ -1838,6 +1956,18 @@
                 }
               ],
               "md": "collection/delay"
+            },
+
+            {
+              "name": "ele.delayAnimation",
+              "descr": "Get a delay [animation](#animations) for the element.",
+              "formats": [
+                {
+                  "args": [
+                    { "name": "duration", "descr": "How long the delay should be in milliseconds." }
+                  ]
+                }
+              ]
             },
 
             {
@@ -2674,7 +2804,7 @@
                   "args": [
                     { "name": "options", "fields": [
                       { "name": "roots", "descr": "The root nodes (selector or collection) to start the search from." },
-                      { "name": "visit: function(i, depth)", "descr": "A handler function that is called when a node is visited in the search.  The handler returns `true` when it finds the desired node, and it returns `false` to cancel the search.", "optional": true, "fields": [
+                      { "name": "visit: function(i, depth, v, e, u)", "descr": "A handler function that is called when a node is visited in the search.  The handler returns `true` when it finds the desired node, and it returns `false` to cancel the search.", "optional": true, "fields": [
                         { "name": "i", "descr": "The index indicating this node is the ith visited node." },
                         { "name": "depth", "descr": "How many edge hops away this node is from the root nodes." },
                         { "name": "v", "descr": "The current node." },
@@ -2688,7 +2818,7 @@
                 {
                   "args": [
                     { "name": "roots", "descr": "The root nodes (selector or collection) to start the search from." },
-                    { "name": "function(i, depth)", "descr": "A handler function that is called when a node is visited in the search.  The handler returns `true` when it finds the desired node, and it returns `false` to cancel the search.", "optional": true, "fields": [
+                    { "name": "function(i, depth, v, e, u)", "descr": "A handler function that is called when a node is visited in the search.  The handler returns `true` when it finds the desired node, and it returns `false` to cancel the search.", "optional": true, "fields": [
                       { "name": "i", "descr": "The index indicating this node is the ith visited node." },
                       { "name": "depth", "descr": "How many edge hops away this node is from the root nodes." },
                       { "name": "v", "descr": "The current node." },
@@ -2861,7 +2991,8 @@
                     { "name": "options", "fields": [
                       { "name": "root", "descr": "The root node (selector or collection) for which the centrality calculation is made." },
                       { "name": "weight: function(edge)", "descr": "A function that returns the weight for `this` edge.", "optional": true },
-                      { "name": "directed", "descr": "A boolean indicating whether the algorithm operates on edges in a directed manner from source to target (`true`) or whether the algorithm operates in an undirected manner (`false`, default).", "optional": true }
+                      { "name": "directed", "descr": "A boolean indicating whether the algorithm operates on edges in a directed manner from source to target (`true`) or whether the algorithm operates in an undirected manner (`false`, default).", "optional": true },
+                      { "name": "harmonic", "descr": "A boolean indicating whether the algorithm calculates the harmonic mean (`true`, default) or the arithmetic mean (`false`) of distances.  The harmonic mean is very useful for graphs that are not strongly connected.", "optional": true }
                     ] }
                   ]
                 }
@@ -2878,7 +3009,8 @@
                   "args": [
                     { "name": "options", "fields": [
                       { "name": "weight: function(edge)", "descr": "A function that returns the weight for `this` edge.", "optional": true },
-                      { "name": "directed", "descr": "A boolean indicating whether the algorithm operates on edges in a directed manner from source to target (`true`) or whether the algorithm operates in an undirected manner (`false`, default).", "optional": true }
+                      { "name": "directed", "descr": "A boolean indicating whether the algorithm operates on edges in a directed manner from source to target (`true`) or whether the algorithm operates in an undirected manner (`false`, default).", "optional": true },
+                      { "name": "harmonic", "descr": "A boolean indicating whether the algorithm calculates the harmonic mean (`true`, default) or the arithmetic mean (`false`) of distances.  The harmonic mean is very useful for graphs that are not strongly connected.", "optional": true }
                     ] }
                   ]
                 }
@@ -3084,44 +3216,9 @@
         },
 
         {
-          "md": "layouts/dagre",
-          "layout": {
-            "name": "dagre"
-          }
-        },
-
-        {
           "md": "layouts/cose",
           "layout": {
             "name": "cose"
-          }
-        },
-
-        {
-          "md": "layouts/cola",
-          "layout": {
-            "name": "cola"
-          }
-        },
-
-        {
-          "md": "layouts/spread",
-          "layout": {
-            "name": "spread"
-          }
-        },
-
-        {
-          "md": "layouts/arbor",
-          "layout": {
-            "name": "arbor"
-          }
-        },
-
-        {
-          "md": "layouts/springy",
-          "layout": {
-            "name": "springy"
           }
         },
 
@@ -3249,6 +3346,119 @@
     },
 
     {
+      "name": "Animations",
+      "md": "animations",
+      "sections": [
+        {
+          "name": "Animation manipulation",
+          "fns": [
+            {
+              "name": "ani.play",
+              "descr": "Requests that the animation be played, starting on the next frame.  If the animation is complete, it restarts from the beginning.",
+              "md": "animation/play"
+            },
+
+            {
+              "name": "ani.playing",
+              "descr": "Get whether the animation is currently playing."
+            },
+
+            {
+              "name": "ani.progress",
+              "descr": "Get or set how far along the animation has progressed.",
+              "formats": [
+                {
+                  "name": "ani.progress",
+                  "descr": "Get the progress of the animation in percent."
+                },
+                {
+                  "name": "ani.progress",
+                  "descr": "Set the progress of the animation in percent.",
+                  "args": [
+                    { "name": "progress", "descr": "The progress in percent (i.e. between 0 and 1 inclusive) to set to the animation." }
+                  ]
+                },
+                {
+                  "name": "ani.time",
+                  "descr": "Get the progress of the animation in milliseconds."
+                },
+                {
+                  "name": "ani.time",
+                  "descr": "Set the progress of the animation in milliseconds.",
+                  "args": [
+                    { "name": "time", "descr": "The progress in milliseconds (i.e. between 0 and the duration inclusive) to set to the animation." }
+                  ]
+                },
+                {
+                  "name": "ani.rewind",
+                  "descr": "Rewind the animation to the beginning."
+                },
+                {
+                  "name": "ani.fastforward",
+                  "descr": "Fastforward the animation to the end."
+                }
+              ],
+              "md": "animation/progress"
+            },
+
+            {
+              "name": "ani.pause",
+              "descr": "Pause the animation, maintaining the current progress.",
+              "md": "animation/pause"
+            },
+
+            {
+              "name": "ani.stop",
+              "descr": "Stop the animation, maintaining the current progress and removing the animation from any associated queues.",
+              "md": "animation/stop"
+            },
+
+            {
+              "name": "ani.completed",
+              "pureAliases": ["ani.complete"],
+              "descr": "Get whether the animation has progressed to the end."
+            },
+
+            {
+              "name": "ani.apply",
+              "descr": "Apply the animation at its current progress.",
+              "md": "animation/apply"
+            },
+
+            {
+              "name": "ani.appling",
+              "descr": "Get whether the animation is currently applying."
+            },
+
+            {
+              "name": "ani.reverse",
+              "descr": "Reverse the animation such that its starting conditions and ending conditions are reversed.",
+              "md": "animation/reverse"
+            },
+
+            {
+              "name": "ani.promise",
+              "descr": "Get a promise that is fulfilled for the specified animation event.",
+              "formats": [
+                {
+                  "descr": "Get a promise that is fulfilled when the animation completes."
+                },
+
+                {
+                  "descr": "Get a promise that is fulfilled for the specified animation event.",
+                  "args": [
+                    { "name": "animationEvent", "descr": "A string for the event name; `completed` or `complete` for completing the animation or `frame` for the next frame of the animation." }
+                  ]
+                }
+              ],
+              "md": "animation/promise"
+            }
+          ]
+        }
+      ]
+    },
+
+    {
       "name": "Architecture",
       "md": "architecture",
       "demo": { "id": "689efca4fcb0fd05671b", "name": "A diagramme of the architecture of Cytoscape.js, made using Cytoscape.js" }
@@ -3256,61 +3466,6 @@
 
     {
       "name": "Extensions",
-      "extensions": [
-        {
-          "name": "cerebralweb",
-          "github": "silviafrias/cerebral-web",
-          "descr": "A plugin to enable fast and interactive visualisation of molecular interaction networks stratified based on subcellular localisation or other custom annotation."
-        },
-
-        {
-          "name": "cxtmenu",
-          "github": "cytoscape/cytoscape.js-cxtmenu",
-          "descr": "A circular context menu."
-        },
-
-        {
-          "name": "edgehandles",
-          "github": "cytoscape/cytoscape.js-edgehandles",
-          "descr": "UI for connecting nodes with edges."
-        },
-
-        {
-          "name": "navigator",
-          "github": "cytoscape/cytoscape.js-navigator",
-          "descr": "A bird's eye view widget of the graph."
-        },
-
-        {
-          "name": "noderesize",
-          "github": "curupaco/cytoscape.js-noderesize",
-          "descr": "A plugin that creates a node resize control."
-        },
-
-        {
-          "name": "panzoom",
-          "github": "cytoscape/cytoscape.js-panzoom",
-          "descr": "A panzoom UI widget."
-        },
-
-        {
-          "name": "qtip",
-          "github": "cytoscape/cytoscape.js-qtip",
-          "descr": "A wrapper that lets you use qTips on graph elements or the graph background."
-        },
-
-        {
-          "name": "supportimages",
-          "github": "curupaco/cytoscape.js-supportimages",
-          "descr": "A plugin that enables support images on Cytoscape.js"
-        },
-
-        {
-          "name": "toolbar",
-          "github": "bdparrish/cytoscape.js-toolbar",
-          "descr": "A plugin for Cytoscape.js that allows a user to create a custom toolbar to add next to a Cytoscape core instance."
-        }
-      ],
       "md": "extensions"
     },
 
