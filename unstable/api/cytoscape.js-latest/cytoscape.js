@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js snapshot-0be8bf5212-1444254352496.
+ * This file is part of Cytoscape.js 2.5.0-unstable2.
  *
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -18704,7 +18704,7 @@ var cytoscape = function( options ){ // jshint ignore:line
 };
 
 // replaced by build system
-cytoscape.version = 'snapshot-0be8bf5212-1444254352496';
+cytoscape.version = '2.5.0-unstable2';
 
 // try to register w/ jquery
 if( window && window.jQuery ){
