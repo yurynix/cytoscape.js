@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.5.0-unstable4.
+ * This file is part of Cytoscape.js 2.5.0-unstable5.
  *
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -842,7 +842,7 @@ var defineSearch = function( params ){
     var thisArg;
     if( is.plainObject(roots) && !is.elementOrCollection(roots) ){
       options = roots;
-      roots = options.roots;
+      roots = options.roots || options.root;
       fn = options.visit;
       directed = options.directed;
       std = options.std;
@@ -3750,7 +3750,7 @@ var elesfn = ({
 // aliases
 var fn = elesfn;
 fn['u'] = fn['|'] = fn['+'] = fn.union = fn.or = fn.add;
-fn['\\'] = fn['!'] = fn['-'] = fn.difference = fn.relativeComplement = fn.not;
+fn['\\'] = fn['!'] = fn['-'] = fn.difference = fn.relativeComplement = fn.subtract = fn.not;
 fn['n'] = fn['&'] = fn['.'] = fn.and = fn.intersection = fn.intersect;
 fn['^'] = fn['(+)'] = fn['(-)'] = fn.symmetricDifference = fn.symdiff = fn.xor;
 fn.fnFilter = fn.filterFn = fn.stdFilter;
@@ -6667,9 +6667,9 @@ util.extend(corefn, {
 
     var domEle = cy.container();
     if( domEle ){
-      while( domEle.firstChild ){ // clean the container
-        domEle.removeChild( domEle.firstChild );
-      }
+      domEle._cyreg = null;
+
+      domEle.parentNode.removeChild( domEle );
     }
 
     return cy;
@@ -13616,6 +13616,8 @@ BRp.notify = function(params) {
 BRp.destroy = function(){
   this.destroyed = true;
 
+  this.cy.stopAnimationLoop();
+
   for( var i = 0; i < this.bindings.length; i++ ){
     var binding = this.bindings[i];
     var b = binding;
@@ -18828,7 +18830,7 @@ var cytoscape = function( options ){ // jshint ignore:line
 };
 
 // replaced by build system
-cytoscape.version = '2.5.0-unstable4';
+cytoscape.version = '2.5.0-unstable5';
 
 // try to register w/ jquery
 if( window && window.jQuery ){
@@ -22555,7 +22557,7 @@ var parseImpl = function( name, value, propIsBypass, propIsFlat ){
 
       var propsSplit = propsStr.split(',');
       for( var i = 0; i < propsSplit.length; i++ ){
-        var propName = util.trim( propsSplit[i] );
+        var propName = propsSplit[i].trim();
 
         if( self.properties[propName] ){
           props.push( propName );
@@ -24142,7 +24144,7 @@ util.staticEmptyObject = function(){
 util.extend = Object.assign != null ? Object.assign : function( tgt ){
   var args = arguments;
 
-  for( var i = 0; i < args.length; i++ ){
+  for( var i = 1; i < args.length; i++ ){
     var obj = args[i];
 
     for( var k in obj ){
