@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.5.0-unstable3.
+ * This file is part of Cytoscape.js 2.5.0-unstable4.
  *
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -252,12 +252,582 @@ anifn.complete = anifn.completed;
 
 module.exports = Animation;
 
-},{"./is":69,"./promise":72,"./util":86}],2:[function(_dereq_,module,exports){
+},{"./is":77,"./promise":80,"./util":94}],2:[function(_dereq_,module,exports){
 'use strict';
 
-var is = _dereq_('../is');
-var util = _dereq_('../util');
-var Heap = _dereq_('../heap');
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
+
+var elesfn = ({
+
+  // Implemented from pseudocode from wikipedia
+  aStar: function(options) {
+    var eles = this;
+
+    options = options || {};
+
+    // Reconstructs the path from Start to End, acumulating the result in pathAcum
+    var reconstructPath = function(start, end, cameFromMap, pathAcum) {
+      // Base case
+      if (start == end) {
+        pathAcum.push( cy.getElementById(end) );
+        return pathAcum;
+      }
+
+      if (end in cameFromMap) {
+        // We know which node is before the last one
+        var previous = cameFromMap[end];
+        var previousEdge = cameFromEdge[end];
+
+        pathAcum.push( cy.getElementById(end) );
+        pathAcum.push( cy.getElementById(previousEdge) );
+
+
+        return reconstructPath(start,
+                     previous,
+                     cameFromMap,
+                     pathAcum);
+      }
+
+      // We should not reach here!
+      return undefined;
+    };
+
+    // Returns the index of the element in openSet which has minimum fScore
+    var findMin = function(openSet, fScore) {
+      if (openSet.length === 0) {
+        // Should never be the case
+        return undefined;
+      }
+      var minPos = 0;
+      var tempScore = fScore[openSet[0]];
+      for (var i = 1; i < openSet.length; i++) {
+        var s = fScore[openSet[i]];
+        if (s < tempScore) {
+          tempScore = s;
+          minPos = i;
+        }
+      }
+      return minPos;
+    };
+
+    var cy = this._private.cy;
+
+    // root - mandatory!
+    if (options != null && options.root != null) {
+      var source = is.string(options.root) ?
+        // use it as a selector, e.g. "#rootID
+        this.filter(options.root)[0] :
+        options.root[0];
+    } else {
+      return undefined;
+    }
+
+    // goal - mandatory!
+    if (options.goal != null) {
+      var target = is.string(options.goal) ?
+        // use it as a selector, e.g. "#goalID
+        this.filter(options.goal)[0] :
+        options.goal[0];
+    } else {
+      return undefined;
+    }
+
+    // Heuristic function - optional
+    if (options.heuristic != null && is.fn(options.heuristic)) {
+      var heuristic = options.heuristic;
+    } else {
+      var heuristic = function(){ return 0; }; // use constant if unspecified
+    }
+
+    // Weight function - optional
+    if (options.weight != null && is.fn(options.weight)) {
+      var weightFn = options.weight;
+    } else {
+      // If not specified, assume each edge has equal weight (1)
+      var weightFn = function(e) {return 1;};
+    }
+
+    // directed - optional
+    if (options.directed != null) {
+      var directed = options.directed;
+    } else {
+      var directed = false;
+    }
+
+    var closedSet = [];
+    var openSet = [source.id()];
+    var cameFrom = {};
+    var cameFromEdge = {};
+    var gScore = {};
+    var fScore = {};
+
+    gScore[source.id()] = 0;
+    fScore[source.id()] = heuristic(source);
+
+    var edges = this.edges().stdFilter(function(e){ return !e.isLoop(); });
+    var nodes = this.nodes();
+
+    // Counter
+    var steps = 0;
+
+    // Main loop
+    while (openSet.length > 0) {
+      var minPos = findMin(openSet, fScore);
+      var cMin = cy.getElementById( openSet[minPos] );
+      steps++;
+
+      // If we've found our goal, then we are done
+      if (cMin.id() == target.id()) {
+        var rPath = reconstructPath(source.id(), target.id(), cameFrom, []);
+        rPath.reverse();
+        return {
+          found : true,
+          distance : gScore[cMin.id()],
+          path : eles.spawn(rPath),
+          steps : steps
+        };
+      }
+
+      // Add cMin to processed nodes
+      closedSet.push(cMin.id());
+      // Remove cMin from boundary nodes
+      openSet.splice(minPos, 1);
+
+      // Update scores for neighbors of cMin
+      // Take into account if graph is directed or not
+      var vwEdges = cMin.connectedEdges();
+      if( directed ){ vwEdges = vwEdges.stdFilter(function(ele){ return ele.data('source') === cMin.id(); }); }
+      vwEdges = vwEdges.intersect(edges);
+
+      for (var i = 0; i < vwEdges.length; i++) {
+        var e = vwEdges[i];
+        var w = e.connectedNodes().stdFilter(function(n){ return n.id() !== cMin.id(); }).intersect(nodes);
+
+        // if node is in closedSet, ignore it
+        if (closedSet.indexOf(w.id()) != -1) {
+          continue;
+        }
+
+        // New tentative score for node w
+        var tempScore = gScore[cMin.id()] + weightFn.apply(e, [e]);
+
+        // Update gScore for node w if:
+        //   w not present in openSet
+        // OR
+        //   tentative gScore is less than previous value
+
+        // w not in openSet
+        if (openSet.indexOf(w.id()) == -1) {
+          gScore[w.id()] = tempScore;
+          fScore[w.id()] = tempScore + heuristic(w);
+          openSet.push(w.id()); // Add node to openSet
+          cameFrom[w.id()] = cMin.id();
+          cameFromEdge[w.id()] = e.id();
+          continue;
+        }
+        // w already in openSet, but with greater gScore
+        if (tempScore < gScore[w.id()]) {
+          gScore[w.id()] = tempScore;
+          fScore[w.id()] = tempScore + heuristic(w);
+          cameFrom[w.id()] = cMin.id();
+        }
+
+      } // End of neighbors update
+
+    } // End of main loop
+
+    // If we've reached here, then we've not reached our goal
+    return {
+      found : false,
+      distance : undefined,
+      path : undefined,
+      steps : steps
+    };
+  }
+
+}); // elesfn
+
+
+module.exports = elesfn;
+
+},{"../../is":77,"../../util":94}],3:[function(_dereq_,module,exports){
+'use strict';
+
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
+
+var elesfn = ({
+
+  // Implemented from pseudocode from wikipedia
+  bellmanFord: function(options) {
+    var eles = this;
+
+    options = options || {};
+
+    // Weight function - optional
+    if (options.weight != null && is.fn(options.weight)) {
+      var weightFn = options.weight;
+    } else {
+      // If not specified, assume each edge has equal weight (1)
+      var weightFn = function(e) {return 1;};
+    }
+
+    // directed - optional
+    if (options.directed != null) {
+      var directed = options.directed;
+    } else {
+      var directed = false;
+    }
+
+    // root - mandatory!
+    if (options.root != null) {
+      if (is.string(options.root)) {
+        // use it as a selector, e.g. "#rootID
+        var source = this.filter(options.root)[0];
+      } else {
+        var source = options.root[0];
+      }
+    } else {
+      return undefined;
+    }
+
+    var cy = this._private.cy;
+    var edges = this.edges().stdFilter(function(e){ return !e.isLoop(); });
+    var nodes = this.nodes();
+    var numNodes = nodes.length;
+
+    // mapping: node id -> position in nodes array
+    var id2position = {};
+    for (var i = 0; i < numNodes; i++) {
+      id2position[nodes[i].id()] = i;
+    }
+
+    // Initializations
+    var cost = [];
+    var predecessor = [];
+    var predEdge = [];
+
+    for (var i = 0; i < numNodes; i++) {
+      if (nodes[i].id() === source.id()) {
+        cost[i] = 0;
+      } else {
+        cost[i] = Infinity;
+      }
+      predecessor[i] = undefined;
+    }
+
+    // Edges relaxation
+    var flag = false;
+    for (var i = 1; i < numNodes; i++) {
+      flag = false;
+      for (var e = 0; e < edges.length; e++) {
+        var sourceIndex = id2position[edges[e].source().id()];
+        var targetIndex = id2position[edges[e].target().id()];
+        var weight = weightFn.apply(edges[e], [edges[e]]);
+
+        var temp = cost[sourceIndex] + weight;
+        if (temp < cost[targetIndex]) {
+          cost[targetIndex] = temp;
+          predecessor[targetIndex] = sourceIndex;
+          predEdge[targetIndex] = edges[e];
+          flag = true;
+        }
+
+        // If undirected graph, we need to take into account the 'reverse' edge
+        if (!directed) {
+          var temp = cost[targetIndex] + weight;
+          if (temp < cost[sourceIndex]) {
+            cost[sourceIndex] = temp;
+            predecessor[sourceIndex] = targetIndex;
+            predEdge[sourceIndex] = edges[e];
+            flag = true;
+          }
+        }
+      }
+
+      if (!flag) {
+        break;
+      }
+    }
+
+    if (flag) {
+      // Check for negative weight cycles
+      for (var e = 0; e < edges.length; e++) {
+        var sourceIndex = id2position[edges[e].source().id()];
+        var targetIndex = id2position[edges[e].target().id()];
+        var weight = weightFn.apply(edges[e], [edges[e]]);
+
+        if (cost[sourceIndex] + weight < cost[targetIndex]) {
+          util.error("Graph contains a negative weight cycle for Bellman-Ford");
+          return { pathTo: undefined,
+               distanceTo: undefined,
+               hasNegativeWeightCycle: true};
+        }
+      }
+    }
+
+    // Build result object
+    var position2id = [];
+    for (var i = 0; i < numNodes; i++) {
+      position2id.push(nodes[i].id());
+    }
+
+
+    var res = {
+      distanceTo : function(to) {
+        if (is.string(to)) {
+          // to is a selector string
+          var toId = (cy.filter(to)[0]).id();
+        } else {
+          // to is a node
+          var toId = to.id();
+        }
+
+        return cost[id2position[toId]];
+      },
+
+      pathTo : function(to) {
+
+        var reconstructPathAux = function(predecessor, fromPos, toPos, position2id, acumPath, predEdge) {
+          for(;;){
+            // Add toId to path
+            acumPath.push( cy.getElementById(position2id[toPos]) );
+            acumPath.push( predEdge[toPos] );
+
+            if (fromPos === toPos) {
+              // reached starting node
+              return acumPath;
+            }
+
+            // If no path exists, discart acumulated path and return undefined
+            var predPos = predecessor[toPos];
+            if (typeof predPos === "undefined") {
+              return undefined;
+            }
+
+            toPos = predPos;
+          }
+
+        };
+
+        if (is.string(to)) {
+          // to is a selector string
+          var toId = (cy.filter(to)[0]).id();
+        } else {
+          // to is a node
+          var toId = to.id();
+        }
+        var path = [];
+
+        // This returns a reversed path
+        var res =  reconstructPathAux(predecessor,
+                      id2position[source.id()],
+                      id2position[toId],
+                      position2id,
+                      path,
+                      predEdge);
+
+        // Get it in the correct order and return it
+        if (res != null) {
+          res.reverse();
+        }
+
+        return eles.spawn(res);
+      },
+
+      hasNegativeWeightCycle: false
+    };
+
+    return res;
+
+  } // bellmanFord
+
+}); // elesfn
+
+module.exports = elesfn;
+
+},{"../../is":77,"../../util":94}],4:[function(_dereq_,module,exports){
+'use strict';
+
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
+
+var elesfn = ({
+
+  // Implemented from the algorithm in the paper "On Variants of Shortest-Path Betweenness Centrality and their Generic Computation" by Ulrik Brandes
+  betweennessCentrality: function (options) {
+    options = options || {};
+
+    // Weight - optional
+    if (options.weight != null && is.fn(options.weight)) {
+      var weightFn = options.weight;
+      var weighted = true;
+    } else {
+      var weighted = false;
+    }
+
+    // Directed - default false
+    if (options.directed != null && is.bool(options.directed)) {
+      var directed = options.directed;
+    } else {
+      var directed = false;
+    }
+
+    var priorityInsert = function (queue, ele) {
+      queue.unshift(ele);
+      for (var i = 0; d[queue[i]] < d[queue[i + 1]] && i < queue.length - 1; i++) {
+        var tmp = queue[i];
+        queue[i] = queue[i + 1];
+        queue[i + 1] = tmp;
+      }
+    };
+
+    var cy = this._private.cy;
+
+    // starting
+    var V = this.nodes();
+    var A = {};
+    var C = {};
+
+    // A contains the neighborhoods of every node
+    for (var i = 0; i < V.length; i++) {
+      if (directed) {
+        A[V[i].id()] = V[i].outgoers("node"); // get outgoers of every node
+      } else {
+        A[V[i].id()] = V[i].openNeighborhood("node"); // get neighbors of every node
+      }
+    }
+
+    // C contains the betweenness values
+    for (var i = 0; i < V.length; i++) {
+      C[V[i].id()] = 0;
+    }
+
+    for (var s = 0; s < V.length; s++) {
+      var S = []; // stack
+      var P = {};
+      var g = {};
+      var d = {};
+      var Q = []; // queue
+
+      // init dictionaries
+      for (var i = 0; i < V.length; i++) {
+        P[V[i].id()] = [];
+        g[V[i].id()] = 0;
+        d[V[i].id()] = Number.POSITIVE_INFINITY;
+      }
+
+      g[V[s].id()] = 1; // sigma
+      d[V[s].id()] = 0; // distance to s
+
+      Q.unshift(V[s].id());
+
+      while (Q.length > 0) {
+        var v = Q.pop();
+        S.push(v);
+        if (weighted) {
+          A[v].forEach(function (w) {
+            if (cy.$('#' + v).edgesTo(w).length > 0) {
+              var edge = cy.$('#' + v).edgesTo(w)[0];
+            } else {
+              var edge = w.edgesTo('#' + v)[0];
+            }
+
+            var edgeWeight = weightFn.apply(edge, [edge]);
+
+            if (d[w.id()] > d[v] + edgeWeight) {
+              d[w.id()] = d[v] + edgeWeight;
+              if (Q.indexOf(w.id()) < 0) { //if w is not in Q
+                priorityInsert(Q, w.id());
+              } else { // update position if w is in Q
+                Q.splice(Q.indexOf(w.id()), 1);
+                priorityInsert(Q, w.id());
+              }
+              g[w.id()] = 0;
+              P[w.id()] = [];
+            }
+            if (d[w.id()] == d[v] + edgeWeight) {
+              g[w.id()] = g[w.id()] + g[v];
+              P[w.id()].push(v);
+            }
+          });
+        } else {
+          A[v].forEach(function (w) {
+            if (d[w.id()] == Number.POSITIVE_INFINITY) {
+              Q.unshift(w.id());
+              d[w.id()] = d[v] + 1;
+            }
+            if (d[w.id()] == d[v] + 1) {
+              g[w.id()] = g[w.id()] + g[v];
+              P[w.id()].push(v);
+            }
+          });
+        }
+      }
+
+      var e = {};
+      for (var i = 0; i < V.length; i++) {
+        e[V[i].id()] = 0;
+      }
+
+      while (S.length > 0) {
+        var w = S.pop();
+        P[w].forEach(function (v) {
+          e[v] = e[v] + (g[v] / g[w]) * (1 + e[w]);
+          if (w != V[s].id())
+            C[w] = C[w] + e[w];
+        });
+      }
+    }
+
+    var max = 0;
+    for (var key in C) {
+      if (max < C[key])
+        max = C[key];
+    }
+
+    var ret = {
+      betweenness: function (node) {
+        if (is.string(node)) {
+          var node = (cy.filter(node)[0]).id();
+        } else {
+          var node = node.id();
+        }
+
+        return C[node];
+      },
+
+      betweennessNormalized: function (node) {
+        if (is.string(node)) {
+          var node = (cy.filter(node)[0]).id();
+        } else {
+          var node = node.id();
+        }
+
+        return C[node] / max;
+      }
+    };
+
+    // alias
+    ret.betweennessNormalised = ret.betweennessNormalized;
+
+    return ret;
+  } // betweennessCentrality
+  
+}); // elesfn
+
+// nice, short mathemathical alias
+elesfn.bc = elesfn.betweennessCentrality;
+
+module.exports = elesfn;
+
+},{"../../is":77,"../../util":94}],5:[function(_dereq_,module,exports){
+'use strict';
+
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
+var Heap = _dereq_('../../heap');
 
 var defineSearch = function( params ){
   params = {
@@ -572,106 +1142,263 @@ var elesfn = ({
 // nice, short mathemathical alias
 elesfn.bfs = elesfn.breadthFirstSearch;
 elesfn.dfs = elesfn.depthFirstSearch;
-elesfn.stdBfs = elesfn.stdBreadthFirstSearch;
-elesfn.stdDfs = elesfn.stdDepthFirstSearch;
 
 module.exports = elesfn;
 
-},{"../heap":67,"../is":69,"../util":86}],3:[function(_dereq_,module,exports){
+},{"../../heap":75,"../../is":77,"../../util":94}],6:[function(_dereq_,module,exports){
 'use strict';
 
-var is = _dereq_('../is');
-var util = _dereq_('../util');
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
 
-// Additional graph analysis algorithms
 var elesfn = ({
 
-  // Implemented from pseudocode from wikipedia
-  aStar: function(options) {
-    var eles = this;
-
+  closenessCentralityNormalized: function (options) {
     options = options || {};
 
-    // Reconstructs the path from Start to End, acumulating the result in pathAcum
-    var reconstructPath = function(start, end, cameFromMap, pathAcum) {
-      // Base case
-      if (start == end) {
-        pathAcum.push( cy.getElementById(end) );
-        return pathAcum;
-      }
+    var cy = this.cy();
 
-      if (end in cameFromMap) {
-        // We know which node is before the last one
-        var previous = cameFromMap[end];
-        var previousEdge = cameFromEdge[end];
+    var harmonic = options.harmonic;
+    if( harmonic === undefined ){
+      harmonic = true;
+    }
 
-        pathAcum.push( cy.getElementById(end) );
-        pathAcum.push( cy.getElementById(previousEdge) );
+    var closenesses = {};
+    var maxCloseness = 0;
+    var nodes = this.nodes();
+    var fw = this.floydWarshall({ weight: options.weight, directed: options.directed });
 
+    // Compute closeness for every node and find the maximum closeness
+    for(var i = 0; i < nodes.length; i++){
+      var currCloseness = 0;
+      for (var j = 0; j < nodes.length; j++) {
+        if (i != j) {
+          var d = fw.distance(nodes[i], nodes[j]);
 
-        return reconstructPath(start,
-                     previous,
-                     cameFromMap,
-                     pathAcum);
-      }
-
-      // We should not reach here!
-      return undefined;
-    };
-
-    // Returns the index of the element in openSet which has minimum fScore
-    var findMin = function(openSet, fScore) {
-      if (openSet.length === 0) {
-        // Should never be the case
-        return undefined;
-      }
-      var minPos = 0;
-      var tempScore = fScore[openSet[0]];
-      for (var i = 1; i < openSet.length; i++) {
-        var s = fScore[openSet[i]];
-        if (s < tempScore) {
-          tempScore = s;
-          minPos = i;
+          if( harmonic ){
+            currCloseness += 1 / d;
+          } else {
+            currCloseness += d;
+          }
         }
       }
-      return minPos;
-    };
 
-    var cy = this._private.cy;
+      if( !harmonic ){
+        currCloseness = 1 / currCloseness;
+      }
+
+      if (maxCloseness < currCloseness){
+        maxCloseness = currCloseness;
+      }
+
+      closenesses[nodes[i].id()] = currCloseness;
+    }
+
+    return {
+      closeness: function (node) {
+        if (is.string(node)) {
+          // from is a selector string
+          var node = (cy.filter(node)[0]).id();
+        } else {
+          // from is a node
+          var node = node.id();
+        }
+
+        return closenesses[node] / maxCloseness;
+      }
+    };
+  },
+
+  // Implemented from pseudocode from wikipedia
+  closenessCentrality: function (options) {
+    options = options || {};
+
+    // root - mandatory!
+    if (options.root != null) {
+      if (is.string(options.root)) {
+        // use it as a selector, e.g. "#rootID
+        var root = this.filter(options.root)[0];
+      } else {
+        var root = options.root[0];
+      }
+    } else {
+      return undefined;
+    }
+
+    // weight - optional
+    if (options.weight != null && is.fn(options.weight)) {
+      var weight = options.weight;
+    } else {
+      var weight = function(){return 1;};
+    }
+
+    // directed - optional
+    if (options.directed != null && is.bool(options.directed)) {
+      var directed = options.directed;
+    } else {
+      var directed = false;
+    }
+
+    var harmonic = options.harmonic;
+    if( harmonic === undefined ){
+      harmonic = true;
+    }
+
+    // we need distance from this node to every other node
+    var dijkstra = this.dijkstra({
+      root: root,
+      weight: weight,
+      directed: directed
+    });
+    var totalDistance = 0;
+
+    var nodes = this.nodes();
+    for (var i = 0; i < nodes.length; i++){
+      if (nodes[i].id() != root.id()){
+        var d = dijkstra.distanceTo(nodes[i]);
+
+        if( harmonic ){
+          totalDistance += 1 / d;
+        } else {
+          totalDistance += d;
+        }
+      }
+    }
+
+    return harmonic ? totalDistance : 1 / totalDistance;
+  } // closenessCentrality
+
+}); // elesfn
+
+// nice, short mathemathical alias
+elesfn.cc = elesfn.closenessCentrality;
+elesfn.ccn = elesfn.closenessCentralityNormalised = elesfn.closenessCentralityNormalized;
+
+module.exports = elesfn;
+
+},{"../../is":77,"../../util":94}],7:[function(_dereq_,module,exports){
+'use strict';
+
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
+
+var elesfn = ({
+
+  degreeCentralityNormalized: function (options) {
+    options = options || {};
+
+    var cy = this.cy();
+
+    // directed - optional
+    if (options.directed != null) {
+      var directed = options.directed;
+    } else {
+      var directed = false;
+    }
+
+    var nodes = this.nodes();
+    var numNodes = nodes.length;
+
+    if (!directed) {
+      var degrees = {};
+      var maxDegree = 0;
+
+      for (var i = 0; i < numNodes; i++) {
+        var node = nodes[i];
+        // add current node to the current options object and call degreeCentrality
+        var currDegree = this.degreeCentrality(util.extend({}, options, {root: node}));
+        if (maxDegree < currDegree.degree)
+          maxDegree = currDegree.degree;
+
+        degrees[node.id()] = currDegree.degree;
+      }
+
+      return {
+        degree: function (node) {
+          if (is.string(node)) {
+            // from is a selector string
+            var node = (cy.filter(node)[0]).id();
+          } else {
+            // from is a node
+            var node = node.id();
+          }
+
+          return degrees[node] / maxDegree;
+        }
+      };
+    } else {
+      var indegrees = {};
+      var outdegrees = {};
+      var maxIndegree = 0;
+      var maxOutdegree = 0;
+
+      for (var i = 0; i < numNodes; i++) {
+        var node = nodes[i];
+        // add current node to the current options object and call degreeCentrality
+        var currDegree = this.degreeCentrality(util.extend({}, options, {root: node}));
+
+        if (maxIndegree < currDegree.indegree)
+          maxIndegree = currDegree.indegree;
+
+        if (maxOutdegree < currDegree.outdegree)
+          maxOutdegree = currDegree.outdegree;
+
+        indegrees[node.id()] = currDegree.indegree;
+        outdegrees[node.id()] = currDegree.outdegree;
+      }
+
+      return {
+        indegree: function (node) {
+          if (is.string(node)) {
+            // from is a selector string
+            var node = (cy.filter(node)[0]).id();
+          } else {
+            // from is a node
+            var node = node.id();
+          }
+
+          return indegrees[node] / maxIndegree;
+        },
+        outdegree: function (node) {
+          if (is.string(node)) {
+            // from is a selector string
+            var node = (cy.filter(node)[0]).id();
+          } else {
+            // from is a node
+            var node = node.id();
+          }
+
+          return outdegrees[node] / maxOutdegree;
+        }
+
+      };
+    }
+
+  }, // degreeCentralityNormalized
+
+  // Implemented from the algorithm in Opsahl's paper
+  // "Node centrality in weighted networks: Generalizing degree and shortest paths"
+  // check the heading 2 "Degree"
+  degreeCentrality: function (options) {
+    options = options || {};
+
+    var callingEles = this;
 
     // root - mandatory!
     if (options != null && options.root != null) {
-      var source = is.string(options.root) ?
-        // use it as a selector, e.g. "#rootID
-        this.filter(options.root)[0] :
-        options.root[0];
+      var root = is.string(options.root) ? this.filter(options.root)[0] : options.root[0];
     } else {
       return undefined;
     }
 
-    // goal - mandatory!
-    if (options.goal != null) {
-      var target = is.string(options.goal) ?
-        // use it as a selector, e.g. "#goalID
-        this.filter(options.goal)[0] :
-        options.goal[0];
-    } else {
-      return undefined;
-    }
-
-    // Heuristic function - optional
-    if (options.heuristic != null && is.fn(options.heuristic)) {
-      var heuristic = options.heuristic;
-    } else {
-      var heuristic = function(){ return 0; }; // use constant if unspecified
-    }
-
-    // Weight function - optional
+    // weight - optional
     if (options.weight != null && is.fn(options.weight)) {
       var weightFn = options.weight;
     } else {
       // If not specified, assume each edge has equal weight (1)
-      var weightFn = function(e) {return 1;};
+      var weightFn = function (e) {
+        return 1;
+      };
     }
 
     // directed - optional
@@ -681,97 +1408,70 @@ var elesfn = ({
       var directed = false;
     }
 
-    var closedSet = [];
-    var openSet = [source.id()];
-    var cameFrom = {};
-    var cameFromEdge = {};
-    var gScore = {};
-    var fScore = {};
+    // alpha - optional
+    if (options.alpha != null && is.number(options.alpha)) {
+      var alpha = options.alpha;
+    } else {
+      alpha = 0;
+    }
 
-    gScore[source.id()] = 0;
-    fScore[source.id()] = heuristic(source);
 
-    var edges = this.edges().stdFilter(function(e){ return !e.isLoop(); });
-    var nodes = this.nodes();
+    if (!directed) {
+      var connEdges = root.connectedEdges().intersection( callingEles );
+      var k = connEdges.length;
+      var s = 0;
 
-    // Counter
-    var steps = 0;
-
-    // Main loop
-    while (openSet.length > 0) {
-      var minPos = findMin(openSet, fScore);
-      var cMin = cy.getElementById( openSet[minPos] );
-      steps++;
-
-      // If we've found our goal, then we are done
-      if (cMin.id() == target.id()) {
-        var rPath = reconstructPath(source.id(), target.id(), cameFrom, []);
-        rPath.reverse();
-        return {
-          found : true,
-          distance : gScore[cMin.id()],
-          path : eles.spawn(rPath),
-          steps : steps
-        };
+      // Now, sum edge weights
+      for (var i = 0; i < connEdges.length; i++) {
+        var edge = connEdges[i];
+        s += weightFn.apply(edge, [edge]);
       }
 
-      // Add cMin to processed nodes
-      closedSet.push(cMin.id());
-      // Remove cMin from boundary nodes
-      openSet.splice(minPos, 1);
+      return {
+        degree: Math.pow(k, 1 - alpha) * Math.pow(s, alpha)
+      };
+    } else {
+      var incoming = root.connectedEdges('edge[target = "' + root.id() + '"]').intersection( callingEles );
+      var outgoing = root.connectedEdges('edge[source = "' + root.id() + '"]').intersection( callingEles );
+      var k_in = incoming.length;
+      var k_out = outgoing.length;
+      var s_in = 0;
+      var s_out = 0;
 
-      // Update scores for neighbors of cMin
-      // Take into account if graph is directed or not
-      var vwEdges = cMin.connectedEdges();
-      if( directed ){ vwEdges = vwEdges.stdFilter(function(ele){ return ele.data('source') === cMin.id(); }); }
-      vwEdges = vwEdges.intersect(edges);
+      // Now, sum incoming edge weights
+      for (var i = 0; i < incoming.length; i++) {
+        var edge = incoming[i];
+        s_in += weightFn.apply(edge, [edge]);
+      }
 
-      for (var i = 0; i < vwEdges.length; i++) {
-        var e = vwEdges[i];
-        var w = e.connectedNodes().stdFilter(function(n){ return n.id() !== cMin.id(); }).intersect(nodes);
+      // Now, sum outgoing edge weights
+      for (var i = 0; i < outgoing.length; i++) {
+        var edge = outgoing[i];
+        s_out += weightFn.apply(edge, [edge]);
+      }
 
-        // if node is in closedSet, ignore it
-        if (closedSet.indexOf(w.id()) != -1) {
-          continue;
-        }
+      return {
+        indegree: Math.pow(k_in, 1 - alpha) * Math.pow(s_in, alpha),
+        outdegree: Math.pow(k_out, 1 - alpha) * Math.pow(s_out, alpha)
+      };
+    }
+  } // degreeCentrality
 
-        // New tentative score for node w
-        var tempScore = gScore[cMin.id()] + weightFn.apply(e, [e]);
+}); // elesfn
 
-        // Update gScore for node w if:
-        //   w not present in openSet
-        // OR
-        //   tentative gScore is less than previous value
+// nice, short mathemathical alias
+elesfn.dc = elesfn.degreeCentrality;
+elesfn.dcn = elesfn.degreeCentralityNormalised = elesfn.degreeCentralityNormalized;
 
-        // w not in openSet
-        if (openSet.indexOf(w.id()) == -1) {
-          gScore[w.id()] = tempScore;
-          fScore[w.id()] = tempScore + heuristic(w);
-          openSet.push(w.id()); // Add node to openSet
-          cameFrom[w.id()] = cMin.id();
-          cameFromEdge[w.id()] = e.id();
-          continue;
-        }
-        // w already in openSet, but with greater gScore
-        if (tempScore < gScore[w.id()]) {
-          gScore[w.id()] = tempScore;
-          fScore[w.id()] = tempScore + heuristic(w);
-          cameFrom[w.id()] = cMin.id();
-        }
+module.exports = elesfn;
 
-      } // End of neighbors update
+},{"../../is":77,"../../util":94}],8:[function(_dereq_,module,exports){
+'use strict';
 
-    } // End of main loop
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
 
-    // If we've reached here, then we've not reached our goal
-    return {
-      found : false,
-      distance : undefined,
-      path : undefined,
-      steps : steps
-    };
-  }, // aStar()
-
+var elesfn = ({
 
   // Implemented from pseudocode from wikipedia
   floydWarshall: function(options) {
@@ -956,193 +1656,42 @@ var elesfn = ({
 
     return res;
 
-  }, // floydWarshall
+  } // floydWarshall
 
+}); // elesfn
 
-  // Implemented from pseudocode from wikipedia
-  bellmanFord: function(options) {
-    var eles = this;
+module.exports = elesfn;
 
-    options = options || {};
+},{"../../is":77,"../../util":94}],9:[function(_dereq_,module,exports){
+'use strict';
 
-    // Weight function - optional
-    if (options.weight != null && is.fn(options.weight)) {
-      var weightFn = options.weight;
-    } else {
-      // If not specified, assume each edge has equal weight (1)
-      var weightFn = function(e) {return 1;};
-    }
+var util = _dereq_('../../util');
 
-    // directed - optional
-    if (options.directed != null) {
-      var directed = options.directed;
-    } else {
-      var directed = false;
-    }
+var elesfn = {};
 
-    // root - mandatory!
-    if (options.root != null) {
-      if (is.string(options.root)) {
-        // use it as a selector, e.g. "#rootID
-        var source = this.filter(options.root)[0];
-      } else {
-        var source = options.root[0];
-      }
-    } else {
-      return undefined;
-    }
+[
+  _dereq_('./bfs-dfs'),
+  _dereq_('./a-star'),
+  _dereq_('./floyd-warshall'),
+  _dereq_('./bellman-ford'),
+  _dereq_('./kerger-stein'),
+  _dereq_('./page-rank'),
+  _dereq_('./degree-centrality'),
+  _dereq_('./closeness-centrality'),
+  _dereq_('./betweenness-centrality')
+].forEach(function( props ){
+  util.extend( elesfn, props );
+});
 
-    var cy = this._private.cy;
-    var edges = this.edges().stdFilter(function(e){ return !e.isLoop(); });
-    var nodes = this.nodes();
-    var numNodes = nodes.length;
+module.exports = elesfn;
 
-    // mapping: node id -> position in nodes array
-    var id2position = {};
-    for (var i = 0; i < numNodes; i++) {
-      id2position[nodes[i].id()] = i;
-    }
+},{"../../util":94,"./a-star":2,"./bellman-ford":3,"./betweenness-centrality":4,"./bfs-dfs":5,"./closeness-centrality":6,"./degree-centrality":7,"./floyd-warshall":8,"./kerger-stein":10,"./page-rank":11}],10:[function(_dereq_,module,exports){
+'use strict';
 
-    // Initializations
-    var cost = [];
-    var predecessor = [];
-    var predEdge = [];
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
 
-    for (var i = 0; i < numNodes; i++) {
-      if (nodes[i].id() === source.id()) {
-        cost[i] = 0;
-      } else {
-        cost[i] = Infinity;
-      }
-      predecessor[i] = undefined;
-    }
-
-    // Edges relaxation
-    var flag = false;
-    for (var i = 1; i < numNodes; i++) {
-      flag = false;
-      for (var e = 0; e < edges.length; e++) {
-        var sourceIndex = id2position[edges[e].source().id()];
-        var targetIndex = id2position[edges[e].target().id()];
-        var weight = weightFn.apply(edges[e], [edges[e]]);
-
-        var temp = cost[sourceIndex] + weight;
-        if (temp < cost[targetIndex]) {
-          cost[targetIndex] = temp;
-          predecessor[targetIndex] = sourceIndex;
-          predEdge[targetIndex] = edges[e];
-          flag = true;
-        }
-
-        // If undirected graph, we need to take into account the 'reverse' edge
-        if (!directed) {
-          var temp = cost[targetIndex] + weight;
-          if (temp < cost[sourceIndex]) {
-            cost[sourceIndex] = temp;
-            predecessor[sourceIndex] = targetIndex;
-            predEdge[sourceIndex] = edges[e];
-            flag = true;
-          }
-        }
-      }
-
-      if (!flag) {
-        break;
-      }
-    }
-
-    if (flag) {
-      // Check for negative weight cycles
-      for (var e = 0; e < edges.length; e++) {
-        var sourceIndex = id2position[edges[e].source().id()];
-        var targetIndex = id2position[edges[e].target().id()];
-        var weight = weightFn.apply(edges[e], [edges[e]]);
-
-        if (cost[sourceIndex] + weight < cost[targetIndex]) {
-          util.error("Graph contains a negative weight cycle for Bellman-Ford");
-          return { pathTo: undefined,
-               distanceTo: undefined,
-               hasNegativeWeightCycle: true};
-        }
-      }
-    }
-
-    // Build result object
-    var position2id = [];
-    for (var i = 0; i < numNodes; i++) {
-      position2id.push(nodes[i].id());
-    }
-
-
-    var res = {
-      distanceTo : function(to) {
-        if (is.string(to)) {
-          // to is a selector string
-          var toId = (cy.filter(to)[0]).id();
-        } else {
-          // to is a node
-          var toId = to.id();
-        }
-
-        return cost[id2position[toId]];
-      },
-
-      pathTo : function(to) {
-
-        var reconstructPathAux = function(predecessor, fromPos, toPos, position2id, acumPath, predEdge) {
-          for(;;){
-            // Add toId to path
-            acumPath.push( cy.getElementById(position2id[toPos]) );
-            acumPath.push( predEdge[toPos] );
-
-            if (fromPos === toPos) {
-              // reached starting node
-              return acumPath;
-            }
-
-            // If no path exists, discart acumulated path and return undefined
-            var predPos = predecessor[toPos];
-            if (typeof predPos === "undefined") {
-              return undefined;
-            }
-
-            toPos = predPos;
-          }
-
-        };
-
-        if (is.string(to)) {
-          // to is a selector string
-          var toId = (cy.filter(to)[0]).id();
-        } else {
-          // to is a node
-          var toId = to.id();
-        }
-        var path = [];
-
-        // This returns a reversed path
-        var res =  reconstructPathAux(predecessor,
-                      id2position[source.id()],
-                      id2position[toId],
-                      position2id,
-                      path,
-                      predEdge);
-
-        // Get it in the correct order and return it
-        if (res != null) {
-          res.reverse();
-        }
-
-        return eles.spawn(res);
-      },
-
-      hasNegativeWeightCycle: false
-    };
-
-    return res;
-
-  }, // bellmanFord
-
+var elesfn = ({
 
   // Computes the minimum cut of an undirected graph
   // Returns the correct answer with high probability
@@ -1305,7 +1854,19 @@ var elesfn = ({
     };
 
     return ret;
-  },
+  }
+}); // elesfn
+
+
+module.exports = elesfn;
+
+},{"../../is":77,"../../util":94}],11:[function(_dereq_,module,exports){
+'use strict';
+
+var is = _dereq_('../../is');
+var util = _dereq_('../../util');
+
+var elesfn = ({
 
   pageRank: function(options) {
     options = options || {};
@@ -1477,467 +2038,13 @@ var elesfn = ({
 
 
     return res;
-  }, // pageRank
+  } // pageRank
 
-  degreeCentralityNormalized: function (options) {
-    options = options || {};
-
-    var cy = this.cy();
-
-    // directed - optional
-    if (options.directed != null) {
-      var directed = options.directed;
-    } else {
-      var directed = false;
-    }
-
-    var nodes = this.nodes();
-    var numNodes = nodes.length;
-
-    if (!directed) {
-      var degrees = {};
-      var maxDegree = 0;
-
-      for (var i = 0; i < numNodes; i++) {
-        var node = nodes[i];
-        // add current node to the current options object and call degreeCentrality
-        var currDegree = this.degreeCentrality(util.extend({}, options, {root: node}));
-        if (maxDegree < currDegree.degree)
-          maxDegree = currDegree.degree;
-
-        degrees[node.id()] = currDegree.degree;
-      }
-
-      return {
-        degree: function (node) {
-          if (is.string(node)) {
-            // from is a selector string
-            var node = (cy.filter(node)[0]).id();
-          } else {
-            // from is a node
-            var node = node.id();
-          }
-
-          return degrees[node] / maxDegree;
-        }
-      };
-    } else {
-      var indegrees = {};
-      var outdegrees = {};
-      var maxIndegree = 0;
-      var maxOutdegree = 0;
-
-      for (var i = 0; i < numNodes; i++) {
-        var node = nodes[i];
-        // add current node to the current options object and call degreeCentrality
-        var currDegree = this.degreeCentrality(util.extend({}, options, {root: node}));
-
-        if (maxIndegree < currDegree.indegree)
-          maxIndegree = currDegree.indegree;
-
-        if (maxOutdegree < currDegree.outdegree)
-          maxOutdegree = currDegree.outdegree;
-
-        indegrees[node.id()] = currDegree.indegree;
-        outdegrees[node.id()] = currDegree.outdegree;
-      }
-
-      return {
-        indegree: function (node) {
-          if (is.string(node)) {
-            // from is a selector string
-            var node = (cy.filter(node)[0]).id();
-          } else {
-            // from is a node
-            var node = node.id();
-          }
-
-          return indegrees[node] / maxIndegree;
-        },
-        outdegree: function (node) {
-          if (is.string(node)) {
-            // from is a selector string
-            var node = (cy.filter(node)[0]).id();
-          } else {
-            // from is a node
-            var node = node.id();
-          }
-
-          return outdegrees[node] / maxOutdegree;
-        }
-
-      };
-    }
-
-  }, // degreeCentralityNormalized
-
-  // Implemented from the algorithm in Opsahl's paper
-  // "Node centrality in weighted networks: Generalizing degree and shortest paths"
-  // check the heading 2 "Degree"
-  degreeCentrality: function (options) {
-    options = options || {};
-
-    var callingEles = this;
-
-    // root - mandatory!
-    if (options != null && options.root != null) {
-      var root = is.string(options.root) ? this.filter(options.root)[0] : options.root[0];
-    } else {
-      return undefined;
-    }
-
-    // weight - optional
-    if (options.weight != null && is.fn(options.weight)) {
-      var weightFn = options.weight;
-    } else {
-      // If not specified, assume each edge has equal weight (1)
-      var weightFn = function (e) {
-        return 1;
-      };
-    }
-
-    // directed - optional
-    if (options.directed != null) {
-      var directed = options.directed;
-    } else {
-      var directed = false;
-    }
-
-    // alpha - optional
-    if (options.alpha != null && is.number(options.alpha)) {
-      var alpha = options.alpha;
-    } else {
-      alpha = 0;
-    }
-
-
-    if (!directed) {
-      var connEdges = root.connectedEdges().intersection( callingEles );
-      var k = connEdges.length;
-      var s = 0;
-
-      // Now, sum edge weights
-      for (var i = 0; i < connEdges.length; i++) {
-        var edge = connEdges[i];
-        s += weightFn.apply(edge, [edge]);
-      }
-
-      return {
-        degree: Math.pow(k, 1 - alpha) * Math.pow(s, alpha)
-      };
-    } else {
-      var incoming = root.connectedEdges('edge[target = "' + root.id() + '"]').intersection( callingEles );
-      var outgoing = root.connectedEdges('edge[source = "' + root.id() + '"]').intersection( callingEles );
-      var k_in = incoming.length;
-      var k_out = outgoing.length;
-      var s_in = 0;
-      var s_out = 0;
-
-      // Now, sum incoming edge weights
-      for (var i = 0; i < incoming.length; i++) {
-        var edge = incoming[i];
-        s_in += weightFn.apply(edge, [edge]);
-      }
-
-      // Now, sum outgoing edge weights
-      for (var i = 0; i < outgoing.length; i++) {
-        var edge = outgoing[i];
-        s_out += weightFn.apply(edge, [edge]);
-      }
-
-      return {
-        indegree: Math.pow(k_in, 1 - alpha) * Math.pow(s_in, alpha),
-        outdegree: Math.pow(k_out, 1 - alpha) * Math.pow(s_out, alpha)
-      };
-    }
-  }, // degreeCentrality
-
-  closenessCentralityNormalized: function (options) {
-    options = options || {};
-
-    var cy = this.cy();
-
-    var harmonic = options.harmonic;
-    if( harmonic === undefined ){
-      harmonic = true;
-    }
-
-    var closenesses = {};
-    var maxCloseness = 0;
-    var nodes = this.nodes();
-    var fw = this.floydWarshall({ weight: options.weight, directed: options.directed });
-
-    // Compute closeness for every node and find the maximum closeness
-    for(var i = 0; i < nodes.length; i++){
-      var currCloseness = 0;
-      for (var j = 0; j < nodes.length; j++) {
-        if (i != j) {
-          var d = fw.distance(nodes[i], nodes[j]);
-
-          if( harmonic ){
-            currCloseness += 1 / d;
-          } else {
-            currCloseness += d;
-          }
-        }
-      }
-
-      if( !harmonic ){
-        currCloseness = 1 / currCloseness;
-      }
-
-      if (maxCloseness < currCloseness){
-        maxCloseness = currCloseness;
-      }
-
-      closenesses[nodes[i].id()] = currCloseness;
-    }
-
-    return {
-      closeness: function (node) {
-        if (is.string(node)) {
-          // from is a selector string
-          var node = (cy.filter(node)[0]).id();
-        } else {
-          // from is a node
-          var node = node.id();
-        }
-
-        return closenesses[node] / maxCloseness;
-      }
-    };
-  },
-  // Implemented from pseudocode from wikipedia
-
-  closenessCentrality: function (options) {
-    options = options || {};
-
-    // root - mandatory!
-    if (options.root != null) {
-      if (is.string(options.root)) {
-        // use it as a selector, e.g. "#rootID
-        var root = this.filter(options.root)[0];
-      } else {
-        var root = options.root[0];
-      }
-    } else {
-      return undefined;
-    }
-
-    // weight - optional
-    if (options.weight != null && is.fn(options.weight)) {
-      var weight = options.weight;
-    } else {
-      var weight = function(){return 1;};
-    }
-
-    // directed - optional
-    if (options.directed != null && is.bool(options.directed)) {
-      var directed = options.directed;
-    } else {
-      var directed = false;
-    }
-
-    var harmonic = options.harmonic;
-    if( harmonic === undefined ){
-      harmonic = true;
-    }
-
-    // we need distance from this node to every other node
-    var dijkstra = this.dijkstra({
-      root: root,
-      weight: weight,
-      directed: directed
-    });
-    var totalDistance = 0;
-
-    var nodes = this.nodes();
-    for (var i = 0; i < nodes.length; i++){
-      if (nodes[i].id() != root.id()){
-        var d = dijkstra.distanceTo(nodes[i]);
-
-        if( harmonic ){
-          totalDistance += 1 / d;
-        } else {
-          totalDistance += d;
-        }
-      }
-    }
-
-    return harmonic ? totalDistance : 1 / totalDistance;
-  }, // closenessCentrality
-
-  // Implemented from the algorithm in the paper "On Variants of Shortest-Path Betweenness Centrality and their Generic Computation" by Ulrik Brandes
-  betweennessCentrality: function (options) {
-    options = options || {};
-
-    // Weight - optional
-    if (options.weight != null && is.fn(options.weight)) {
-      var weightFn = options.weight;
-      var weighted = true;
-    } else {
-      var weighted = false;
-    }
-
-    // Directed - default false
-    if (options.directed != null && is.bool(options.directed)) {
-      var directed = options.directed;
-    } else {
-      var directed = false;
-    }
-
-    var priorityInsert = function (queue, ele) {
-      queue.unshift(ele);
-      for (var i = 0; d[queue[i]] < d[queue[i + 1]] && i < queue.length - 1; i++) {
-        var tmp = queue[i];
-        queue[i] = queue[i + 1];
-        queue[i + 1] = tmp;
-      }
-    };
-
-    var cy = this._private.cy;
-
-    // starting
-    var V = this.nodes();
-    var A = {};
-    var C = {};
-
-    // A contains the neighborhoods of every node
-    for (var i = 0; i < V.length; i++) {
-      if (directed) {
-        A[V[i].id()] = V[i].outgoers("node"); // get outgoers of every node
-      } else {
-        A[V[i].id()] = V[i].openNeighborhood("node"); // get neighbors of every node
-      }
-    }
-
-    // C contains the betweenness values
-    for (var i = 0; i < V.length; i++) {
-      C[V[i].id()] = 0;
-    }
-
-    for (var s = 0; s < V.length; s++) {
-      var S = []; // stack
-      var P = {};
-      var g = {};
-      var d = {};
-      var Q = []; // queue
-
-      // init dictionaries
-      for (var i = 0; i < V.length; i++) {
-        P[V[i].id()] = [];
-        g[V[i].id()] = 0;
-        d[V[i].id()] = Number.POSITIVE_INFINITY;
-      }
-
-      g[V[s].id()] = 1; // sigma
-      d[V[s].id()] = 0; // distance to s
-
-      Q.unshift(V[s].id());
-
-      while (Q.length > 0) {
-        var v = Q.pop();
-        S.push(v);
-        if (weighted) {
-          A[v].forEach(function (w) {
-            if (cy.$('#' + v).edgesTo(w).length > 0) {
-              var edge = cy.$('#' + v).edgesTo(w)[0];
-            } else {
-              var edge = w.edgesTo('#' + v)[0];
-            }
-
-            var edgeWeight = weightFn.apply(edge, [edge]);
-
-            if (d[w.id()] > d[v] + edgeWeight) {
-              d[w.id()] = d[v] + edgeWeight;
-              if (Q.indexOf(w.id()) < 0) { //if w is not in Q
-                priorityInsert(Q, w.id());
-              } else { // update position if w is in Q
-                Q.splice(Q.indexOf(w.id()), 1);
-                priorityInsert(Q, w.id());
-              }
-              g[w.id()] = 0;
-              P[w.id()] = [];
-            }
-            if (d[w.id()] == d[v] + edgeWeight) {
-              g[w.id()] = g[w.id()] + g[v];
-              P[w.id()].push(v);
-            }
-          });
-        } else {
-          A[v].forEach(function (w) {
-            if (d[w.id()] == Number.POSITIVE_INFINITY) {
-              Q.unshift(w.id());
-              d[w.id()] = d[v] + 1;
-            }
-            if (d[w.id()] == d[v] + 1) {
-              g[w.id()] = g[w.id()] + g[v];
-              P[w.id()].push(v);
-            }
-          });
-        }
-      }
-
-      var e = {};
-      for (var i = 0; i < V.length; i++) {
-        e[V[i].id()] = 0;
-      }
-
-      while (S.length > 0) {
-        var w = S.pop();
-        P[w].forEach(function (v) {
-          e[v] = e[v] + (g[v] / g[w]) * (1 + e[w]);
-          if (w != V[s].id())
-            C[w] = C[w] + e[w];
-        });
-      }
-    }
-
-    var max = 0;
-    for (var key in C) {
-      if (max < C[key])
-        max = C[key];
-    }
-
-    var ret = {
-      betweenness: function (node) {
-        if (is.string(node)) {
-          var node = (cy.filter(node)[0]).id();
-        } else {
-          var node = node.id();
-        }
-
-        return C[node];
-      },
-
-      betweennessNormalized: function (node) {
-        if (is.string(node)) {
-          var node = (cy.filter(node)[0]).id();
-        } else {
-          var node = node.id();
-        }
-
-        return C[node] / max;
-      }
-    };
-
-    // alias
-    ret.betweennessNormalised = ret.betweennessNormalized;
-
-    return ret;
-  } // betweennessCentrality
 }); // elesfn
-
-// nice, short mathemathical alias
-elesfn.dc = elesfn.degreeCentrality;
-elesfn.dcn = elesfn.degreeCentralityNormalised = elesfn.degreeCentralityNormalized;
-elesfn.cc = elesfn.closenessCentrality;
-elesfn.ccn = elesfn.closenessCentralityNormalised = elesfn.closenessCentralityNormalized;
-elesfn.bc = elesfn.betweennessCentrality;
 
 module.exports = elesfn;
 
-},{"../is":69,"../util":86}],4:[function(_dereq_,module,exports){
+},{"../../is":77,"../../util":94}],12:[function(_dereq_,module,exports){
 'use strict';
 
 var define = _dereq_('../define');
@@ -1954,7 +2061,7 @@ var elesfn = ({
 
 module.exports = elesfn;
 
-},{"../define":33}],5:[function(_dereq_,module,exports){
+},{"../define":41}],13:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -2098,7 +2205,7 @@ var elesfn = ({
 
 module.exports = elesfn;
 
-},{"../util":86}],6:[function(_dereq_,module,exports){
+},{"../util":94}],14:[function(_dereq_,module,exports){
 'use strict';
 
 var elesfn = ({
@@ -2162,7 +2269,7 @@ elesfn.allAreNeighbours = elesfn.allAreNeighbors;
 
 module.exports = elesfn;
 
-},{}],7:[function(_dereq_,module,exports){
+},{}],15:[function(_dereq_,module,exports){
 'use strict';
 
 var elesfn = ({
@@ -2282,7 +2389,7 @@ elesfn.ancestors = elesfn.parents;
 
 module.exports = elesfn;
 
-},{}],8:[function(_dereq_,module,exports){
+},{}],16:[function(_dereq_,module,exports){
 'use strict';
 
 var define = _dereq_('../define');
@@ -2373,7 +2480,7 @@ fn.removeAttr = fn.removeData;
 
 module.exports = elesfn;
 
-},{"../define":33,"../is":69,"../util":86}],9:[function(_dereq_,module,exports){
+},{"../define":41,"../is":77,"../util":94}],17:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -2496,7 +2603,7 @@ util.extend(elesfn, {
 
 module.exports = elesfn;
 
-},{"../util":86}],10:[function(_dereq_,module,exports){
+},{"../util":94}],18:[function(_dereq_,module,exports){
 'use strict';
 
 var define = _dereq_('../define');
@@ -2903,12 +3010,12 @@ fn = elesfn = ({
         ///////////////////////////////////
 
         if( styleEnabled && style['curve-style'].strValue === 'haystack' ){
-          var hpts = _p.rscratch.haystackPts;
+          var hpts = rstyle.haystackPts;
 
-          ex1 = hpts[0];
-          ey1 = hpts[1];
-          ex2 = hpts[2];
-          ey2 = hpts[3];
+          ex1 = hpts[0].x;
+          ey1 = hpts[0].y;
+          ex2 = hpts[1].x;
+          ey2 = hpts[1].y;
 
           if( ex1 > ex2 ){
             var temp = ex1;
@@ -3144,7 +3251,7 @@ fn.renderedBoundingbox = fn.renderedBoundingBox;
 
 module.exports = elesfn;
 
-},{"../define":33,"../is":69,"../util":86}],11:[function(_dereq_,module,exports){
+},{"../define":41,"../is":77,"../util":94}],19:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -3250,7 +3357,7 @@ var Element = function(cy, params, restore){
 
 module.exports = Element;
 
-},{"../is":69,"../util":86}],12:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94}],20:[function(_dereq_,module,exports){
 'use strict';
 
 var define = _dereq_('../define');
@@ -3281,7 +3388,7 @@ define.eventAliasesOn( elesfn );
 
 module.exports = elesfn;
 
-},{"../define":33}],13:[function(_dereq_,module,exports){
+},{"../define":41}],21:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -3651,7 +3758,7 @@ fn.complement = fn.abscomp = fn.absoluteComplement;
 
 module.exports = elesfn;
 
-},{"../is":69,"../selector":73}],14:[function(_dereq_,module,exports){
+},{"../is":77,"../selector":81}],22:[function(_dereq_,module,exports){
 'use strict';
 
 var elesfn = ({
@@ -3683,7 +3790,7 @@ var elesfn = ({
 
 module.exports = elesfn;
 
-},{}],15:[function(_dereq_,module,exports){
+},{}],23:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -4361,7 +4468,6 @@ elesfn.move = function( struct ){
 
 [
   _dereq_('./algorithms'),
-  _dereq_('./algorithms2'),
   _dereq_('./animation'),
   _dereq_('./class'),
   _dereq_('./comparators'),
@@ -4384,7 +4490,7 @@ elesfn.move = function( struct ){
 
 module.exports = Collection;
 
-},{"../is":69,"../util":86,"./algorithms":2,"./algorithms2":3,"./animation":4,"./class":5,"./comparators":6,"./compounds":7,"./data":8,"./degree":9,"./dimensions":10,"./element":11,"./events":12,"./filter":13,"./group":14,"./index":15,"./iteration":16,"./layout":17,"./style":18,"./switch-functions":19,"./traversing":20}],16:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94,"./algorithms":9,"./animation":12,"./class":13,"./comparators":14,"./compounds":15,"./data":16,"./degree":17,"./dimensions":18,"./element":19,"./events":20,"./filter":21,"./group":22,"./index":23,"./iteration":24,"./layout":25,"./style":26,"./switch-functions":27,"./traversing":28}],24:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -4521,7 +4627,7 @@ var elesfn = ({
 
 module.exports = elesfn;
 
-},{"../is":69,"./zsort":21}],17:[function(_dereq_,module,exports){
+},{"../is":77,"./zsort":29}],25:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -4634,7 +4740,7 @@ elesfn.createLayout = elesfn.makeLayout;
 
 module.exports = elesfn;
 
-},{"../is":69,"../util":86}],18:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94}],26:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -4932,7 +5038,7 @@ elesfn.removeBypass = elesfn.removeStyle = elesfn.removeCss;
 
 module.exports = elesfn;
 
-},{"../is":69}],19:[function(_dereq_,module,exports){
+},{"../is":77}],27:[function(_dereq_,module,exports){
 'use strict';
 
 var elesfn = {};
@@ -5085,7 +5191,7 @@ elesfn.inactive = function(){
 
 module.exports = elesfn;
 
-},{}],20:[function(_dereq_,module,exports){
+},{}],28:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -5532,7 +5638,7 @@ util.extend(elesfn, {
 
 module.exports = elesfn;
 
-},{"../is":69,"../util":86}],21:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94}],29:[function(_dereq_,module,exports){
 'use strict';
 
 var zIndexSort = function( a, b ){
@@ -5582,7 +5688,7 @@ var zIndexSort = function( a, b ){
 
 module.exports = zIndexSort;
 
-},{}],22:[function(_dereq_,module,exports){
+},{}],30:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -5727,7 +5833,7 @@ var corefn = {
 
 module.exports = corefn;
 
-},{"../collection":15,"../collection/element":11,"../extensions/renderer/null":65,"../is":69,"../util":86,"../window":92}],23:[function(_dereq_,module,exports){
+},{"../collection":23,"../collection/element":19,"../extensions/renderer/null":73,"../is":77,"../util":94,"../window":100}],31:[function(_dereq_,module,exports){
 'use strict';
 
 var define = _dereq_('../define');
@@ -6299,7 +6405,7 @@ var corefn = ({
 
 module.exports = corefn;
 
-},{"../define":33,"../is":69,"../util":86}],24:[function(_dereq_,module,exports){
+},{"../define":41,"../is":77,"../util":94}],32:[function(_dereq_,module,exports){
 'use strict';
 
 var define = _dereq_('../define');
@@ -6316,7 +6422,7 @@ define.eventAliasesOn( corefn );
 
 module.exports = corefn;
 
-},{"../define":33}],25:[function(_dereq_,module,exports){
+},{"../define":41}],33:[function(_dereq_,module,exports){
 'use strict';
 
 var corefn = ({
@@ -6343,7 +6449,7 @@ corefn.jpeg = corefn.jpg;
 
 module.exports = corefn;
 
-},{}],26:[function(_dereq_,module,exports){
+},{}],34:[function(_dereq_,module,exports){
 'use strict';
 
 var window = _dereq_('../window');
@@ -6810,7 +6916,7 @@ util.extend(corefn, {
 
 module.exports = Core;
 
-},{"../collection":15,"../define":33,"../is":69,"../promise":72,"../util":86,"../window":92,"./add-remove":22,"./animation":23,"./events":24,"./export":25,"./layout":27,"./notification":28,"./renderer":29,"./search":30,"./style":31,"./viewport":32}],27:[function(_dereq_,module,exports){
+},{"../collection":23,"../define":41,"../is":77,"../promise":80,"../util":94,"../window":100,"./add-remove":30,"./animation":31,"./events":32,"./export":33,"./layout":35,"./notification":36,"./renderer":37,"./search":38,"./style":39,"./viewport":40}],35:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -6868,7 +6974,7 @@ corefn.createLayout = corefn.makeLayout;
 
 module.exports = corefn;
 
-},{"../is":69,"../util":86}],28:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94}],36:[function(_dereq_,module,exports){
 'use strict';
 
 var Collection = _dereq_('../collection');
@@ -6982,7 +7088,7 @@ var corefn = ({
 
 module.exports = corefn;
 
-},{"../collection":15}],29:[function(_dereq_,module,exports){
+},{"../collection":23}],37:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -7080,7 +7186,7 @@ corefn.invalidateDimensions = corefn.resize;
 
 module.exports = corefn;
 
-},{"../util":86}],30:[function(_dereq_,module,exports){
+},{"../util":94}],38:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -7149,7 +7255,7 @@ corefn.elements = corefn.filter = corefn.$;
 
 module.exports = corefn;
 
-},{"../collection":15,"../is":69}],31:[function(_dereq_,module,exports){
+},{"../collection":23,"../is":77}],39:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -7189,7 +7295,7 @@ var corefn = ({
 
 module.exports = corefn;
 
-},{"../is":69,"../style":78}],32:[function(_dereq_,module,exports){
+},{"../is":77,"../style":86}],40:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -7730,7 +7836,7 @@ corefn.autoungrabifyNodes = corefn.autoungrabify;
 
 module.exports = corefn;
 
-},{"../is":69}],33:[function(_dereq_,module,exports){
+},{"../is":77}],41:[function(_dereq_,module,exports){
 'use strict';
 
 // use this module to cherry pick functions into your prototype
@@ -8540,7 +8646,7 @@ var define = {
 
 module.exports = define;
 
-},{"./animation":1,"./event":34,"./is":69,"./promise":72,"./selector":73,"./util":86}],34:[function(_dereq_,module,exports){
+},{"./animation":1,"./event":42,"./is":77,"./promise":80,"./selector":81,"./util":94}],42:[function(_dereq_,module,exports){
 'use strict';
 
 // ref
@@ -8640,7 +8746,7 @@ Event.prototype = {
 
 module.exports = Event;
 
-},{}],35:[function(_dereq_,module,exports){
+},{}],43:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('./util');
@@ -8825,7 +8931,7 @@ incExts.forEach(function( group ){
 
 module.exports = extension;
 
-},{"./collection":15,"./core":26,"./define":33,"./extensions":36,"./is":69,"./util":86}],36:[function(_dereq_,module,exports){
+},{"./collection":23,"./core":34,"./define":41,"./extensions":44,"./is":77,"./util":94}],44:[function(_dereq_,module,exports){
 'use strict';
 
 module.exports = [
@@ -8840,7 +8946,7 @@ module.exports = [
   }
 ];
 
-},{"./layout":42,"./renderer":64}],37:[function(_dereq_,module,exports){
+},{"./layout":50,"./renderer":72}],45:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../util');
@@ -9275,7 +9381,7 @@ BreadthFirstLayout.prototype.run = function(){
 
 module.exports = BreadthFirstLayout;
 
-},{"../../is":69,"../../math":71,"../../util":86}],38:[function(_dereq_,module,exports){
+},{"../../is":77,"../../math":79,"../../util":94}],46:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../util');
@@ -9380,7 +9486,7 @@ CircleLayout.prototype.run = function(){
 
 module.exports = CircleLayout;
 
-},{"../../is":69,"../../math":71,"../../util":86}],39:[function(_dereq_,module,exports){
+},{"../../is":77,"../../math":79,"../../util":94}],47:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../util');
@@ -9580,11 +9686,15 @@ ConcentricLayout.prototype.run = function(){
 
 module.exports = ConcentricLayout;
 
-},{"../../math":71,"../../util":86}],40:[function(_dereq_,module,exports){
+},{"../../math":79,"../../util":94}],48:[function(_dereq_,module,exports){
 'use strict';
 
 /*
 The CoSE layout was written by Gerardo Huck.
+https://www.linkedin.com/in/gerardohuck/
+
+Based on the following article:
+http://dl.acm.org/citation.cfm?id=1498047
 
 Modifications tracked on Github.
 */
@@ -9609,8 +9719,13 @@ var defaults = {
   // Whether to animate while running the layout
   animate             : true,
 
-  // Number of iterations between consecutive screen positions update (0 -> only updated on the end)
-  refresh             : 5,
+  // The layout animates only after this many milliseconds
+  // (prevents flashing on fast runs)
+  animationThreshold  : 250,
+
+  // Number of iterations between consecutive screen positions update
+  // (0 -> only updated on the end)
+  refresh             : 20,
 
   // Whether to fit the network view after when done
   fit                 : true,
@@ -9620,9 +9735,6 @@ var defaults = {
 
   // Constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
   boundingBox         : undefined,
-
-  // Whether to randomize node positions on the beginning
-  randomize           : true,
 
   // Extra spacing between components in non-compound graphs
   componentSpacing    : 100,
@@ -9646,7 +9758,7 @@ var defaults = {
   gravity             : 80,
 
   // Maximum number of iterations to perform
-  numIter             : 100,
+  numIter             : 1000,
 
   // Initial temperature (maximum node displacement)
   initialTemp         : 200,
@@ -9655,7 +9767,10 @@ var defaults = {
   coolingFactor       : 0.95,
 
   // Lower temperature threshold (below this point the layout will end)
-  minTemp             : 1.0
+  minTemp             : 1.0,
+
+  // Whether to use threading to speed up the layout
+  useMultitasking     : true
 };
 
 
@@ -9680,7 +9795,7 @@ CoseLayout.prototype.run = function() {
   var thread  = this.thread;
 
   if( !thread || thread.stopped() ){
-    thread = this.thread = Thread();
+    thread = this.thread = Thread({ disabled: !options.useMultitasking });
   }
 
   layout.stopped = false;
@@ -9703,13 +9818,20 @@ CoseLayout.prototype.run = function() {
   }
 
   // If required, randomize node positions
-  if (true === options.randomize) {
+  // if (true === options.randomize) {
     randomizePositions(layoutInfo, cy);
-  }
+  // }
 
+  var startTime = Date.now();
   var refreshRequested = false;
-  var refresh = function(){
+  var refresh = function( rOpts ){
+    rOpts = rOpts || {};
+
     if( refreshRequested ){
+      return;
+    }
+
+    if( !rOpts.force && Date.now() - startTime < options.animationThreshold ){
       return;
     }
 
@@ -10414,7 +10536,7 @@ CoseLayout.prototype.run = function() {
   });
 
   var done = function(){
-    refresh();
+    refresh({ force: true });
 
     // Layout has finished
     layout.one('layoutstop', options.stop);
@@ -10869,7 +10991,7 @@ var refreshPositions = function(layoutInfo, cy, options) {
 
 module.exports = CoseLayout;
 
-},{"../../is":69,"../../math":71,"../../thread":84,"../../util":86}],41:[function(_dereq_,module,exports){
+},{"../../is":77,"../../math":79,"../../thread":92,"../../util":94}],49:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../util');
@@ -11113,7 +11235,7 @@ GridLayout.prototype.run = function(){
 
 module.exports = GridLayout;
 
-},{"../../math":71,"../../util":86}],42:[function(_dereq_,module,exports){
+},{"../../math":79,"../../util":94}],50:[function(_dereq_,module,exports){
 'use strict';
 
 module.exports = [
@@ -11127,7 +11249,7 @@ module.exports = [
   { name: 'random', impl: _dereq_('./random') }
 ];
 
-},{"./breadthfirst":37,"./circle":38,"./concentric":39,"./cose":40,"./grid":41,"./null":43,"./preset":44,"./random":45}],43:[function(_dereq_,module,exports){
+},{"./breadthfirst":45,"./circle":46,"./concentric":47,"./cose":48,"./grid":49,"./null":51,"./preset":52,"./random":53}],51:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../util');
@@ -11181,7 +11303,7 @@ NullLayout.prototype.stop = function(){
 
 module.exports = NullLayout;
 
-},{"../../util":86}],44:[function(_dereq_,module,exports){
+},{"../../util":94}],52:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../util');
@@ -11244,7 +11366,7 @@ PresetLayout.prototype.run = function(){
 
 module.exports = PresetLayout;
 
-},{"../../is":69,"../../util":86}],45:[function(_dereq_,module,exports){
+},{"../../is":77,"../../util":94}],53:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../util');
@@ -11289,7 +11411,7 @@ RandomLayout.prototype.run = function(){
 
 module.exports = RandomLayout;
 
-},{"../../math":71,"../../util":86}],46:[function(_dereq_,module,exports){
+},{"../../math":79,"../../util":94}],54:[function(_dereq_,module,exports){
 'use strict';
 
 var math = _dereq_('../../../math');
@@ -11573,7 +11695,7 @@ BRp.registerArrowShapes = function(){
 
 module.exports = BRp;
 
-},{"../../../is":69,"../../../math":71,"../../../util":86}],47:[function(_dereq_,module,exports){
+},{"../../../is":77,"../../../math":79,"../../../util":94}],55:[function(_dereq_,module,exports){
 'use strict';
 
 var BRp = {};
@@ -11615,7 +11737,7 @@ BRp.updateElementsCache = function(){
 
 module.exports = BRp;
 
-},{}],48:[function(_dereq_,module,exports){
+},{}],56:[function(_dereq_,module,exports){
 'use strict';
 
 var math = _dereq_('../../../math');
@@ -11958,54 +12080,31 @@ BRp.getAllInBox = function(x1, y1, x2, y2) {
   for( var e = 0; e < edges.length; e++ ){
     var edge = edges[e];
     var _p = edge._private;
-    var style = _p.style;
     var rs = _p.rscratch;
-    var width = style['width'].pfValue;
+    var src = _p.source;
+    var tgt = _p.target;
 
-    if( rs.edgeType === 'bezier' || rs.edgeType === 'multibezier' || rs.edgeType === 'self' || rs.edgeType === 'compound' ){
+    if( rs.startX != null && rs.startY != null && !math.inBoundingBox( boxBb, rs.startX, rs.startY ) ){ continue; }
+    if( rs.endX != null && rs.endY != null && !math.inBoundingBox( boxBb, rs.endX, rs.endY ) ){ continue; }
 
-      var pts = rs.allpts;
-      for( var i = 0; i + 6 < pts.length; i += 4 ){
-        if(
-          math.boxInBezierVicinity( x1, y1, x2, y2, pts[i], pts[i+1], pts[i+2], pts[i+3], pts[i+4], pts[i+5], width )
-          && math.checkBezierInBox( x1, y1, x2, y2, pts[i], pts[i+1], pts[i+2], pts[i+3], pts[i+4], pts[i+5], width )
-        ){
-          box.push(edge);
+    if( rs.edgeType === 'bezier' || rs.edgeType === 'multibezier' || rs.edgeType === 'self' || rs.edgeType === 'compound' || rs.edgeType === 'segments' || rs.edgeType === 'haystack' ){
+
+      var pts = _p.rstyle.bezierPts || _p.rstyle.linePts || _p.rstyle.haystackPts;
+      var allInside = true;
+
+      for( var i = 0; i < pts.length; i++ ){
+        if( !math.pointInBoundingBox( boxBb, pts[i] ) ){
+          allInside = false;
+          break;
         }
       }
 
-    } else if( rs.edgeType === 'straight' ){
-
-      if( (heur = math.boxInBezierVicinity(x1, y1, x2, y2,
-            rs.startX, rs.startY,
-            rs.startX * 0.5 + rs.endX * 0.5,
-            rs.startY * 0.5 + rs.endY * 0.5,
-            rs.endX, rs.endY, width))
-              &&
-            (heur === 2 || (heur === 1 && math.checkStraightEdgeInBox(x1, y1, x2, y2,
-              rs.startX, rs.startY,
-              rs.endX, rs.endY, width)))
-      ){
-        box.push(edge);
-      }
-
-    } else if( rs.edgeType === 'haystack' ){
-      var tgt = edge.target()[0];
-      var tgtPos = tgt.position();
-      var src = edge.source()[0];
-      var srcPos = src.position();
-
-      var startX = srcPos.x + rs.source.x;
-      var startY = srcPos.y + rs.source.y;
-      var endX = tgtPos.x + rs.target.x;
-      var endY = tgtPos.y + rs.target.y;
-
-      var startInBox = (x1 <= startX && startX <= x2) && (y1 <= startY && startY <= y2);
-      var endInBox = (x1 <= endX && endX <= x2) && (y1 <= endY && endY <= y2);
-
-      if( startInBox && endInBox ){
+      if( allInside ){
         box.push( edge );
       }
+
+    } else if( rs.edgeType === 'haystack' || rs.edgeType === 'straight' ){
+      box.push( edge );
     }
 
   }
@@ -12136,7 +12235,7 @@ BRp.projectLines = function( edge ){
   var rs = _p.rscratch;
   var et = rs.edgeType;
 
-  if(  et === 'multibezier' ||  et === 'bezier' ||  et === 'self' ||  et === 'compound' ){
+  if( et === 'multibezier' ||  et === 'bezier' ||  et === 'self' ||  et === 'compound' ){
     var bpts = _p.rstyle.bezierPts = []; // jshint ignore:line
 
     for( var i = 0; i + 5 < rs.allpts.length; i += 4 ){
@@ -12151,6 +12250,13 @@ BRp.projectLines = function( edge ){
         y: rs.allpts[i+1]
       });
     }
+  } else if( et === 'haystack' ){
+    var hpts = rs.haystackPts;
+
+    _p.rstyle.haystackPts = [
+      { x: hpts[0], y: hpts[1] },
+      { x: hpts[2], y: hpts[3] }
+    ];
   }
 };
 
@@ -13092,8 +13198,9 @@ BRp.findEdgeControlPoints = function(edges) {
     rscratch.edgeType = 'haystack';
     rscratch.haystack = true;
 
-    this.recalculateEdgeLabelProjection( edge );
+    this.projectLines( edge );
     this.calculateArrowAngles( edge );
+    this.recalculateEdgeLabelProjection( edge );
   }
 
   for( var i = 0 ; i < autorotateEdges.length; i++ ){
@@ -13361,7 +13468,7 @@ BRp.getArrowWidth = BRp.getArrowHeight = function(edgeWidth) {
 
 module.exports = BRp;
 
-},{"../../../collection/zsort":21,"../../../is":69,"../../../math":71}],49:[function(_dereq_,module,exports){
+},{"../../../collection/zsort":29,"../../../is":77,"../../../math":79}],57:[function(_dereq_,module,exports){
 'use strict';
 
 var BRp = {};
@@ -13385,7 +13492,7 @@ BRp.getCachedImage = function(url, onLoad) {
 
 module.exports = BRp;
 
-},{}],50:[function(_dereq_,module,exports){
+},{}],58:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../../is');
@@ -13543,7 +13650,7 @@ BRp.destroy = function(){
 
 module.exports = BR;
 
-},{"../../../is":69,"../../../util":86,"./arrow-shapes":46,"./cached-eles":47,"./coord-ele-math":48,"./images":49,"./load-listeners":51,"./node-shapes":52,"./redraw":53}],51:[function(_dereq_,module,exports){
+},{"../../../is":77,"../../../util":94,"./arrow-shapes":54,"./cached-eles":55,"./coord-ele-math":56,"./images":57,"./load-listeners":59,"./node-shapes":60,"./redraw":61}],59:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../../is');
@@ -14118,7 +14225,7 @@ BRp.load = function() {
         select[4] == 1 && (down == null || down.isEdge())
     ){
 
-      if( !r.hoverData.dragging && cy.boxSelectionEnabled() && multSelKeyDown ){
+      if( !r.hoverData.dragging && cy.boxSelectionEnabled() && ( multSelKeyDown || !cy.panningEnabled() || !cy.userPanningEnabled() ) ){
         r.data.bgActivePosistion = undefined;
         r.hoverData.selecting = true;
 
@@ -14289,14 +14396,14 @@ BRp.load = function() {
       r.hoverData.cxtDragged = false;
       r.hoverData.which = null;
 
-    // if not right mouse
-    } else {
+    } else if( r.hoverData.which === 1 ) {
 
       // Deselect all elements if nothing is currently under the mouse cursor and we aren't dragging something
       if ( (down == null) // not mousedown on node
         && !r.dragData.didDrag // didn't move the node around
         && !r.hoverData.selecting // not box selection
         && !r.hoverData.dragged // didn't pan
+        && !isMultSelKeyDown( e )
       ) {
 
         cy.$(function(){
@@ -15405,7 +15512,7 @@ BRp.load = function() {
 
 module.exports = BRp;
 
-},{"../../../collection":15,"../../../event":34,"../../../is":69,"../../../util":86}],52:[function(_dereq_,module,exports){
+},{"../../../collection":23,"../../../event":42,"../../../is":77,"../../../util":94}],60:[function(_dereq_,module,exports){
 'use strict';
 
 var math = _dereq_('../../../math');
@@ -15642,7 +15749,7 @@ BRp.registerNodeShapes = function(){
 
 module.exports = BRp;
 
-},{"../../../math":71}],53:[function(_dereq_,module,exports){
+},{"../../../math":79}],61:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../../util');
@@ -15736,7 +15843,7 @@ BRp.startRenderLoop = function(){
 
 module.exports = BRp;
 
-},{"../../../util":86}],54:[function(_dereq_,module,exports){
+},{"../../../util":94}],62:[function(_dereq_,module,exports){
 'use strict';
 
 var CRp = {};
@@ -15796,7 +15903,7 @@ CRp.arrowShapeImpl = function( name ){
 
 module.exports = CRp;
 
-},{}],55:[function(_dereq_,module,exports){
+},{}],63:[function(_dereq_,module,exports){
 'use strict';
 
 var CRp = {};
@@ -16080,7 +16187,7 @@ CRp.drawArrowShape = function(edge, arrowType, context, fill, edgeWidth, shape, 
 
 module.exports = CRp;
 
-},{}],56:[function(_dereq_,module,exports){
+},{}],64:[function(_dereq_,module,exports){
 'use strict';
 
 var CRp = {};
@@ -16235,7 +16342,7 @@ CRp.drawInscribedImage = function(context, img, node) {
 
 module.exports = CRp;
 
-},{}],57:[function(_dereq_,module,exports){
+},{}],65:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../../is');
@@ -16618,7 +16725,7 @@ CRp.drawText = function(context, element, textX, textY) {
 
 module.exports = CRp;
 
-},{"../../../is":69}],58:[function(_dereq_,module,exports){
+},{"../../../is":77}],66:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../../is');
@@ -16943,7 +17050,7 @@ CRp.drawPie = function( context, node, nodeOpacity ){
 
 module.exports = CRp;
 
-},{"../../../is":69}],59:[function(_dereq_,module,exports){
+},{"../../../is":77}],67:[function(_dereq_,module,exports){
 'use strict';
 
 var CRp = {};
@@ -17611,7 +17718,7 @@ CRp.render = function( options ) {
 
 module.exports = CRp;
 
-},{"../../../math":71,"../../../util":86}],60:[function(_dereq_,module,exports){
+},{"../../../math":79,"../../../util":94}],68:[function(_dereq_,module,exports){
 'use strict';
 
   var math = _dereq_('../../../math');
@@ -17702,7 +17809,7 @@ module.exports = CRp;
 
 module.exports = CRp;
 
-},{"../../../math":71}],61:[function(_dereq_,module,exports){
+},{"../../../math":79}],69:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../../is');
@@ -17809,7 +17916,7 @@ CRp.jpg = function( options ){
 
 module.exports = CRp;
 
-},{"../../../is":69}],62:[function(_dereq_,module,exports){
+},{"../../../is":77}],70:[function(_dereq_,module,exports){
 /*
 The canvas renderer was written by Yue Dong.
 
@@ -17932,7 +18039,7 @@ CRp.usePaths = function(){
 
 module.exports = CR;
 
-},{"../../../util":86,"./arrow-shapes":54,"./drawing-edges":55,"./drawing-images":56,"./drawing-label-text":57,"./drawing-nodes":58,"./drawing-redraw":59,"./drawing-shapes":60,"./export-image":61,"./node-shapes":63}],63:[function(_dereq_,module,exports){
+},{"../../../util":94,"./arrow-shapes":62,"./drawing-edges":63,"./drawing-images":64,"./drawing-label-text":65,"./drawing-nodes":66,"./drawing-redraw":67,"./drawing-shapes":68,"./export-image":69,"./node-shapes":71}],71:[function(_dereq_,module,exports){
 'use strict';
 
 var CRp = {};
@@ -17959,7 +18066,7 @@ CRp.nodeShapeImpl = function( name ){
 
 module.exports = CRp;
 
-},{}],64:[function(_dereq_,module,exports){
+},{}],72:[function(_dereq_,module,exports){
 'use strict';
 
 module.exports = [
@@ -17968,7 +18075,7 @@ module.exports = [
   { name: 'canvas', impl: _dereq_('./canvas') }
 ];
 
-},{"./base":50,"./canvas":62,"./null":65}],65:[function(_dereq_,module,exports){
+},{"./base":58,"./canvas":70,"./null":73}],73:[function(_dereq_,module,exports){
 'use strict';
 
 function NullRenderer(options){
@@ -17986,7 +18093,7 @@ NullRenderer.prototype = {
 
 module.exports = NullRenderer;
 
-},{}],66:[function(_dereq_,module,exports){
+},{}],74:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('./is');
@@ -18309,7 +18416,7 @@ define.eventAliasesOn( fabfn );
 
 module.exports = Fabric;
 
-},{"./define":33,"./is":69,"./promise":72,"./thread":84,"./util":86,"os":undefined}],67:[function(_dereq_,module,exports){
+},{"./define":41,"./is":77,"./promise":80,"./thread":92,"./util":94,"os":undefined}],75:[function(_dereq_,module,exports){
 'use strict';
 /* jshint ignore:start */
 
@@ -18691,7 +18798,7 @@ module.exports = Fabric;
 
 /* jshint ignore:end */
 
-},{}],68:[function(_dereq_,module,exports){
+},{}],76:[function(_dereq_,module,exports){
 'use strict';
 
 var window = _dereq_('./window');
@@ -18721,7 +18828,7 @@ var cytoscape = function( options ){ // jshint ignore:line
 };
 
 // replaced by build system
-cytoscape.version = '2.5.0-unstable3';
+cytoscape.version = '2.5.0-unstable4';
 
 // try to register w/ jquery
 if( window && window.jQuery ){
@@ -18740,7 +18847,7 @@ cytoscape.fabric = cytoscape.Fabric = Fabric;
 
 module.exports = cytoscape;
 
-},{"./core":26,"./extension":35,"./fabric":66,"./is":69,"./jquery-plugin":70,"./stylesheet":83,"./thread":84,"./window":92}],69:[function(_dereq_,module,exports){
+},{"./core":34,"./extension":43,"./fabric":74,"./is":77,"./jquery-plugin":78,"./stylesheet":91,"./thread":92,"./window":100}],77:[function(_dereq_,module,exports){
 'use strict';
 
 var window = _dereq_('./window');
@@ -18922,7 +19029,7 @@ var is = {
 
 module.exports = is;
 
-},{"./window":92}],70:[function(_dereq_,module,exports){
+},{"./window":100}],78:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('./is');
@@ -18990,7 +19097,7 @@ var registerJquery = function( $, cytoscape ){
 
 module.exports = registerJquery;
 
-},{"./is":69}],71:[function(_dereq_,module,exports){
+},{"./is":77}],79:[function(_dereq_,module,exports){
 'use strict';
 
 var math = {};
@@ -19223,75 +19330,6 @@ math.roundRectangleIntersectLine = function(
   return []; // if nothing
 };
 
-math.boxInBezierVicinity = function( x1box, y1box, x2box, y2box, x1, y1, x2, y2, x3, y3, tolerance ){
-
-  // midpoint
-  var midX = 0.25 * x1 + 0.5 * x2 + 0.25 * x3;
-  var midY = 0.25 * y1 + 0.5 * y2 + 0.25 * y3;
-
-  var boxMinX = Math.min(x1box, x2box) - tolerance;
-  var boxMinY = Math.min(y1box, y2box) - tolerance;
-  var boxMaxX = Math.max(x1box, x2box) + tolerance;
-  var boxMaxY = Math.max(y1box, y2box) + tolerance;
-
-  if (x1 >= boxMinX && x1 <= boxMaxX && y1 >= boxMinY && y1 <= boxMaxY) { // (x1, y1) in box
-    return 1;
-  } else if (x3 >= boxMinX && x3 <= boxMaxX && y3 >= boxMinY && y3 <= boxMaxY) { // (x3, y3) in box
-    return 1;
-  } else if (midX >= boxMinX && midX <= boxMaxX && midY >= boxMinY && midY <= boxMaxY) { // (midX, midY) in box
-    return 1;
-  } else if (x2 >= boxMinX && x2 <= boxMaxX && y2 >= boxMinY && y2 <= boxMaxY) { // ctrl pt in box
-    return 1;
-  }
-
-  var curveMinX = Math.min(x1, midX, x3);
-  var curveMinY = Math.min(y1, midY, y3);
-  var curveMaxX = Math.max(x1, midX, x3);
-  var curveMaxY = Math.max(y1, midY, y3);
-
-  if (curveMinX > boxMaxX
-    || curveMaxX < boxMinX
-    || curveMinY > boxMaxY
-    || curveMaxY < boxMinY) {
-
-    return 0;
-  }
-
-  return 1;
-};
-
-math.checkBezierInBox = function(
-  x1box, y1box, x2box, y2box, x1, y1, x2, y2, x3, y3, tolerance) {
-
-  function sampleInBox(t){
-    var x = math.qbezierAt(x1, x2, x3, t);
-    var y = math.qbezierAt(y1, y2, y3, t);
-
-    return x1box <= x && x <= x2box
-      && y1box <= y && y <= y2box
-    ;
-  }
-
-  for( var t = 0; t <= 1; t += 0.25 ){
-    if( !sampleInBox(t) ){
-      return false;
-    }
-  }
-
-  return true;
-};
-
-math.checkStraightEdgeInBox = function(
-  x1box, y1box, x2box, y2box, x1, y1, x2, y2, tolerance) {
-
-  return x1box <= x1 && x1 <= x2box
-    && x1box <= x2 && x2 <= x2box
-    && y1box <= y1 && y1 <= y2box
-    && y1box <= y2 && y2 <= y2box
-  ;
-};
-
-
 math.inLineVicinity = function(x, y, lx1, ly1, lx2, ly2, tolerance){
   var t = tolerance;
 
@@ -19451,29 +19489,6 @@ math.sqDistanceToQuadraticBezier = function(
     }
   }
 
-  /*
-  debugStats.clickX = x;
-  debugStats.clickY = y;
-
-  debugStats.closestX = Math.pow(1.0 - closestParam, 2.0) * x1
-      + 2.0 * (1.0 - closestParam) * closestParam * x2
-      + closestParam * closestParam * x3;
-
-  debugStats.closestY = Math.pow(1.0 - closestParam, 2.0) * y1
-      + 2.0 * (1.0 - closestParam) * closestParam * y2
-      + closestParam * closestParam * y3;
-  */
-
-  // debug("given: "
-  //   + "( " + x + ", " + y + "), "
-  //   + "( " + x1 + ", " + y1 + "), "
-  //   + "( " + x2 + ", " + y2 + "), "
-  //   + "( " + x3 + ", " + y3 + ")");
-
-
-  // debug("roots: " + roots);
-  // debug("params: " + params);
-  // debug("closest param: " + closestParam);
   return minDistanceSquared;
 };
 
@@ -19984,7 +19999,7 @@ math.getRoundRectangleRadius = function(width, height) {
 
 module.exports = math;
 
-},{}],72:[function(_dereq_,module,exports){
+},{}],80:[function(_dereq_,module,exports){
 // internal, minimal Promise impl s.t. apis can return promises in old envs
 // based on thenable (http://github.com/rse/thenable)
 
@@ -20191,7 +20206,7 @@ Promise.all = Promise.all || function( ps ){
 
 module.exports = Promise;
 
-},{}],73:[function(_dereq_,module,exports){
+},{}],81:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('./is');
@@ -21091,7 +21106,7 @@ selfn.toString = selfn.selector = function(){
 
 module.exports = Selector;
 
-},{"./is":69,"./util":86}],74:[function(_dereq_,module,exports){
+},{"./is":77,"./util":94}],82:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -21676,7 +21691,7 @@ styfn.updateTransitions = function( ele, diffProps, isBypass ){
 
 module.exports = styfn;
 
-},{"../is":69,"../util":86}],75:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94}],83:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -21838,7 +21853,7 @@ styfn.removeBypasses = function( eles, props, updateTransitions ){
 
 module.exports = styfn;
 
-},{"../is":69,"../util":86}],76:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94}],84:[function(_dereq_,module,exports){
 'use strict';
 
 var window = _dereq_('../window');
@@ -21868,7 +21883,7 @@ styfn.containerCss = function( propName ){
 
 module.exports = styfn;
 
-},{"../window":92}],77:[function(_dereq_,module,exports){
+},{"../window":100}],85:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -21982,7 +21997,7 @@ styfn.getPropsList = function( propsObj ){
 
 module.exports = styfn;
 
-},{"../is":69,"../util":86}],78:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94}],86:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -22153,7 +22168,7 @@ Style.properties = styfn.properties;
 
 module.exports = Style;
 
-},{"../is":69,"../selector":73,"../util":86,"./apply":74,"./bypass":75,"./container":76,"./get-for-ele":77,"./json":79,"./parse":80,"./properties":81,"./string-sheet":82}],79:[function(_dereq_,module,exports){
+},{"../is":77,"../selector":81,"../util":94,"./apply":82,"./bypass":83,"./container":84,"./get-for-ele":85,"./json":87,"./parse":88,"./properties":89,"./string-sheet":90}],87:[function(_dereq_,module,exports){
 'use strict';
 
 var styfn = {};
@@ -22214,7 +22229,7 @@ styfn.json = function(){
 
 module.exports = styfn;
 
-},{}],80:[function(_dereq_,module,exports){
+},{}],88:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -22618,7 +22633,7 @@ var parseImpl = function( name, value, propIsBypass, propIsFlat ){
 
 module.exports = styfn;
 
-},{"../is":69,"../util":86}],81:[function(_dereq_,module,exports){
+},{"../is":77,"../util":94}],89:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -23055,7 +23070,7 @@ styfn.addDefaultStylesheet = function(){
 
 module.exports = styfn;
 
-},{"../util":86}],82:[function(_dereq_,module,exports){
+},{"../util":94}],90:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -23195,7 +23210,7 @@ styfn.fromString = function( string ){
 
 module.exports = styfn;
 
-},{"../selector":73,"../util":86}],83:[function(_dereq_,module,exports){
+},{"../selector":81,"../util":94}],91:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('./is');
@@ -23290,7 +23305,7 @@ sheetfn.generateStyle = function( cy ){
 
 module.exports = Stylesheet;
 
-},{"./is":69,"./style":78,"./util":86}],84:[function(_dereq_,module,exports){
+},{"./is":77,"./style":86,"./util":94}],92:[function(_dereq_,module,exports){
 // cross-env thread/worker
 // NB : uses (heavyweight) processes on nodejs so best not to create too many threads
 
@@ -23774,7 +23789,7 @@ define.eventAliasesOn( thdfn );
 
 module.exports = Thread;
 
-},{"./define":33,"./event":34,"./is":69,"./promise":72,"./util":86,"./window":92,"child_process":undefined,"path":undefined}],85:[function(_dereq_,module,exports){
+},{"./define":41,"./event":42,"./is":77,"./promise":80,"./util":94,"./window":100,"child_process":undefined,"path":undefined}],93:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -24069,7 +24084,7 @@ module.exports = {
   }
 };
 
-},{"../is":69}],86:[function(_dereq_,module,exports){
+},{"../is":77}],94:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -24151,7 +24166,7 @@ util.extend = Object.assign != null ? Object.assign : function( tgt ){
 
 module.exports = util;
 
-},{"../is":69,"../math":71,"./colors":85,"./maps":87,"./memoize":88,"./regex":89,"./strings":90,"./timing":91}],87:[function(_dereq_,module,exports){
+},{"../is":77,"../math":79,"./colors":93,"./maps":95,"./memoize":96,"./regex":97,"./strings":98,"./timing":99}],95:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../is');
@@ -24270,7 +24285,7 @@ module.exports = {
   }
 };
 
-},{"../is":69}],88:[function(_dereq_,module,exports){
+},{"../is":77}],96:[function(_dereq_,module,exports){
 'use strict';
 
 module.exports = function memoize( fn, keyFn ){
@@ -24306,7 +24321,7 @@ module.exports = function memoize( fn, keyFn ){
   };
 };
 
-},{}],89:[function(_dereq_,module,exports){
+},{}],97:[function(_dereq_,module,exports){
 'use strict';
 
 var number = "(?:[-+]?(?:(?:\\d+|\\d*\\.\\d+)(?:[Ee][+-]?\\d+)?))";
@@ -24332,7 +24347,7 @@ module.exports = {
   }
 };
 
-},{}],90:[function(_dereq_,module,exports){
+},{}],98:[function(_dereq_,module,exports){
 'use strict';
 
 var memoize = _dereq_('./memoize');
@@ -24362,7 +24377,7 @@ module.exports = {
 
 }
 
-},{"../is":69,"./memoize":88}],91:[function(_dereq_,module,exports){
+},{"../is":77,"./memoize":96}],99:[function(_dereq_,module,exports){
 'use strict';
 
 var window = _dereq_('../window');
@@ -24517,10 +24532,10 @@ util.debounce = function(func, wait, options) { // ported lodash debounce functi
 
 module.exports = util;
 
-},{"../is":69,"../window":92}],92:[function(_dereq_,module,exports){
+},{"../is":77,"../window":100}],100:[function(_dereq_,module,exports){
 module.exports = ( typeof window === 'undefined' ? null : window );
 
-},{}]},{},[68])(68)
+},{}]},{},[76])(76)
 });
 
 
