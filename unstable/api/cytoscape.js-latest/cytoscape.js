@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.5.0-unstable5.
+ * This file is part of Cytoscape.js 2.5.0-unstable6.
  *
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -8817,6 +8817,8 @@ function setExtension( type, name, registrant ){
           }
         }
 
+        this.trigger('layoutstop');
+
         return this;
       };
     }
@@ -9988,10 +9990,15 @@ CoseLayout.prototype.run = function() {
       }
 
       // Apply force
-      node1.offsetX -= forceX;
-      node1.offsetY -= forceY;
-      node2.offsetX += forceX;
-      node2.offsetY += forceY;
+      if( !node1.isLocked ){
+        node1.offsetX -= forceX;
+        node1.offsetY -= forceY;
+      }
+
+      if( !node2.isLocked ){
+        node2.offsetX += forceX;
+        node2.offsetY += forceY;
+      }
 
       // s += "\nForceX: " + forceX + " ForceY: " + forceY;
       // logDebug(s);
@@ -10151,10 +10158,15 @@ CoseLayout.prototype.run = function() {
         }
 
         // Add this force to target and source nodes
-        source.offsetX += forceX;
-        source.offsetY += forceY;
-        target.offsetX -= forceX;
-        target.offsetY -= forceY;
+        if( !source.isLocked ){
+          source.offsetX += forceX;
+          source.offsetY += forceY;
+        }
+
+        if( !target.isLocked ){
+          target.offsetX -= forceX;
+          target.offsetY -= forceY;
+        }
 
         // var s = 'Edge force between nodes ' + source.id + ' and ' + target.id;
         // s += "\nDistance: " + l + " Force: (" + forceX + ", " + forceY + ")";
@@ -10195,6 +10207,9 @@ CoseLayout.prototype.run = function() {
         for (var j = 0; j < numNodes; j++) {
           var node = layoutInfo.layoutNodes[layoutInfo.idToIndex[graph[j]]];
           // s = "Node: " + node.id;
+
+          if( node.isLocked ){ continue; }
+
           var dx = centerX - node.positionX;
           var dy = centerY - node.positionY;
           var d  = Math.sqrt(dx * dx + dy * dy);
@@ -10240,27 +10255,27 @@ CoseLayout.prototype.run = function() {
         var children  = node.children;
 
         // We only need to process the node if it's compound
-        if (0 < children.length) {
-        var offX = node.offsetX;
-        var offY = node.offsetY;
+        if (0 < children.length && !node.isLocked) {
+          var offX = node.offsetX;
+          var offY = node.offsetY;
 
-        // var s = "Propagating offset from parent node : " + node.id +
-        //   ". OffsetX: " + offX + ". OffsetY: " + offY;
-        // s += "\n Children: " + children.toString();
-        // logDebug(s);
+          // var s = "Propagating offset from parent node : " + node.id +
+          //   ". OffsetX: " + offX + ". OffsetY: " + offY;
+          // s += "\n Children: " + children.toString();
+          // logDebug(s);
 
-        for (var i = 0; i < children.length; i++) {
-          var childNode = layoutInfo.layoutNodes[layoutInfo.idToIndex[children[i]]];
-          // Propagate offset
-          childNode.offsetX += offX;
-          childNode.offsetY += offY;
-          // Add children to queue to be visited
-          queue[++end] = children[i];
-        }
+          for (var i = 0; i < children.length; i++) {
+            var childNode = layoutInfo.layoutNodes[layoutInfo.idToIndex[children[i]]];
+            // Propagate offset
+            childNode.offsetX += offX;
+            childNode.offsetY += offY;
+            // Add children to queue to be visited
+            queue[++end] = children[i];
+          }
 
-        // Reset parent offsets
-        node.offsetX = 0;
-        node.offsetY = 0;
+          // Reset parent offsets
+          node.offsetX = 0;
+          node.offsetY = 0;
         }
 
       }
@@ -10288,8 +10303,8 @@ CoseLayout.prototype.run = function() {
 
       for (var i = 0; i < layoutInfo.nodeSize; i++) {
         var n = layoutInfo.layoutNodes[i];
-        if (0 < n.children.length) {
-          // No need to set compound node position
+        if (0 < n.children.length || n.isLocked) {
+          // No need to set compound or locked node position
           // logDebug("Skipping position update of node: " + n.id);
           continue;
         }
@@ -10316,7 +10331,7 @@ CoseLayout.prototype.run = function() {
       // Update size, position of compund nodes
       for (var i = 0; i < layoutInfo.nodeSize; i++) {
         var n = layoutInfo.layoutNodes[i];
-        if (0 < n.children.length) {
+        if ( 0 < n.children.length && !n.isLocked ) {
           n.positionX = (n.maxX + n.minX) / 2;
           n.positionY = (n.maxY + n.minY) / 2;
           n.width     = n.maxX - n.minX;
@@ -10426,8 +10441,7 @@ CoseLayout.prototype.run = function() {
         component.push( node );
       }
 
-      var totalW = 0;
-      var totalH = 0;
+      var totalA = 0;
 
       for( var i = 0; i < components.length; i++ ){
         var c = components[i];
@@ -10448,8 +10462,7 @@ CoseLayout.prototype.run = function() {
         c.w = c.x2 - c.x1;
         c.h = c.y2 - c.y1;
 
-        totalW += c.w;
-        totalH += c.h;
+        totalA += c.w * c.h;
       }
 
       components.sort(function( c1, c2 ){
@@ -10460,6 +10473,7 @@ CoseLayout.prototype.run = function() {
       var y = 0;
       var usedW = 0;
       var rowH = 0;
+      var maxRowW = Math.sqrt( totalA ) * layoutInfo.clientWidth / layoutInfo.clientHeight;
 
       for( var i = 0; i < components.length; i++ ){
         var c = components[i];
@@ -10467,15 +10481,17 @@ CoseLayout.prototype.run = function() {
         for( var j = 0; j < c.length; j++ ){
           var n = c[j];
 
-          n.positionX += x;
-          n.positionY += y;
+          if( !n.isLocked ){
+            n.positionX += x;
+            n.positionY += y;
+          }
         }
 
         x += c.w + options.componentSpacing;
         usedW += c.w + options.componentSpacing;
         rowH = Math.max( rowH, c.h );
 
-        if( usedW > (totalW + options.componentSpacing*components.length)/2 ){
+        if( usedW > maxRowW ){
           y += rowH + options.componentSpacing;
           x = 0;
           usedW = 0;
@@ -10557,6 +10573,8 @@ CoseLayout.prototype.stop = function(){
     this.thread.stop();
   }
 
+  this.trigger('layoutstop');
+
   return this; // chaining
 };
 
@@ -10581,6 +10599,7 @@ var createLayoutInfo = function(cy, layout, options) {
   var nodes = options.eles.nodes();
 
   var layoutInfo   = {
+    isLocked     : node.locked(),
     isCompound   : cy.hasCompoundNodes(),
     layoutNodes  : [],
     idToIndex    : {},
@@ -10909,8 +10928,9 @@ var randomizePositions = function(layoutInfo, cy) {
 
   for (var i = 0; i < layoutInfo.nodeSize; i++) {
     var n = layoutInfo.layoutNodes[i];
-    // No need to randomize compound nodes
-    if (true || 0 === n.children.length) {
+
+    // No need to randomize compound nodes or locked nodes
+    if ( 0 === n.children.length && !n.isLocked ) {
       n.positionX = Math.random() * width;
       n.positionY = Math.random() * height;
     }
@@ -11895,7 +11915,7 @@ BRp.findNearestElement = function(x, y, visibleElementsOnly, isTouch){
       var pts = rs.allpts;
       for( var i = 0; i + 5 < rs.allpts.length; i += 4 ){
         if(
-          (inEdgeBB = math.inBezierVicinity(x, y, pts[i], pts[i+1], pts[i+2], pts[i+3], pts[i+4], pts[i+5], widthSq))
+          (inEdgeBB = math.inBezierVicinity(x, y, pts[i], pts[i+1], pts[i+2], pts[i+3], pts[i+4], pts[i+5], width2))
             && passesVisibilityCheck() &&
           (widthSq > (sqDist = math.sqDistanceToQuadraticBezier(x, y, pts[i], pts[i+1], pts[i+2], pts[i+3], pts[i+4], pts[i+5])) )
         ){
@@ -18200,7 +18220,7 @@ util.extend(fabfn, {
     if( is.array(data) ){
       pass.push( data );
     } else {
-      util.error('Only arrays or collections may be used with fabric.pass()');
+      throw 'Only arrays may be used with fabric.pass()';
     }
 
     return this; // chaining
@@ -18830,7 +18850,7 @@ var cytoscape = function( options ){ // jshint ignore:line
 };
 
 // replaced by build system
-cytoscape.version = '2.5.0-unstable5';
+cytoscape.version = '2.5.0-unstable6';
 
 // try to register w/ jquery
 if( window && window.jQuery ){
@@ -19345,13 +19365,13 @@ math.inLineVicinity = function(x, y, lx1, ly1, lx2, ly2, tolerance){
 };
 
 math.inBezierVicinity = function(
-  x, y, x1, y1, x2, y2, x3, y3, toleranceSquared) {
+  x, y, x1, y1, x2, y2, x3, y3, tolerance) {
 
   var bb = {
-    x1: Math.min( x1, x3, x2 ),
-    x2: Math.max( x1, x3, x2 ),
-    y1: Math.min( y1, y3, y2 ),
-    y2: Math.max( y1, y3, y2 )
+    x1: Math.min( x1, x3, x2 ) - tolerance,
+    x2: Math.max( x1, x3, x2 ) + tolerance,
+    y1: Math.min( y1, y3, y2 ) - tolerance,
+    y2: Math.max( y1, y3, y2 ) + tolerance
   };
 
   // if outside the rough bounding box for the bezier, then it can't be a hit
@@ -23443,6 +23463,8 @@ util.extend(thdfn, {
   instanceString: function(){ return 'thread'; },
 
   require: function( fn, as ){
+    var requires = this._private.requires;
+
     if( isPathStr(fn) ){
       this._private.files.push( fn );
 
@@ -23451,18 +23473,21 @@ util.extend(thdfn, {
 
     if( as ){
       if( is.fn(fn) ){
-        // disabled b/c doesn't work with forced names on functions w/ prototypes
-        //fn = fnAs( fn, as );
-
-        as = as || fn.name;
-
         fn = { name: as, fn: fn };
       } else {
         fn = { name: as, obj: fn };
       }
+    } else {
+      if( is.fn(fn) ){
+        if( !fn.name ){
+          throw 'The function name could not be automatically determined.  Use thread.require( someFunction, "someFunction" )';
+        }
+
+        fn = { name: fn.name, fn: fn };
+      }
     }
 
-    this._private.requires.push( fn );
+    requires.push( fn );
 
     return this; // chaining
   },
@@ -23479,8 +23504,7 @@ util.extend(thdfn, {
     pass = pass || _p.pass.shift();
 
     if( _p.stopped ){
-      util.error('Attempted to run a stopped thread!  Start a new thread or do not stop the existing thread and reuse it.');
-      return;
+      throw 'Attempted to run a stopped thread!  Start a new thread or do not stop the existing thread and reuse it.';
     }
 
     if( _p.running ){
@@ -23541,6 +23565,7 @@ util.extend(thdfn, {
           var fnPre = fnStr + '';
 
           fnStr = [
+            'function _ref_(o){ return eval(o); };',
             'function broadcast(m){ return message(m); };', // alias
             'function message(m){ postMessage(m); };',
             'function listen(fn){',
@@ -23634,23 +23659,15 @@ util.extend(thdfn, {
           listeners: [],
 
           exec: function(){
-            function broadcast(m){ return message(m); } // jshint ignore:line
-
-            function message(m){ // jshint ignore:line
-              self.trigger( new Event({}, { type: 'message', message: m }) );
-            }
-
-            function listen(fn){ // jshint ignore:line
-              timer.listeners.push( fn );
-            }
-
-            function resolve(v){ // jshint ignore:line
-              promiseResolve(v);
-            }
-
-            function reject(v){ // jshint ignore:line
-              promiseReject(v);
-            }
+            // as a string so it can't be mangled by minifiers and processors
+            fnStr = [
+              'function _ref_(o){ return eval(o); };',
+              'function broadcast(m){ return message(m); };',
+              'function message(m){ self.trigger( new Event({}, { type: "message", message: m }) ); };',
+              'function listen(fn){ timer.listeners.push( fn ); };',
+              'function resolve(v){ promiseResolve(v); };',
+              'function reject(v){ promiseReject(v); };'
+            ].join('\n') + fnStr;
 
             // the .run() code
             eval( fnStr ); // jshint ignore:line
@@ -23732,9 +23749,10 @@ util.extend(thdfn, {
 
 });
 
+// turns a stringified function into a (re)named function
 var fnAs = function( fn, name ){
   var fnStr = fn.toString();
-  fnStr = fnStr.replace(/function.*\(/, 'function ' + name + '(');
+  fnStr = fnStr.replace(/function\s*\S*\s*\(/, 'function ' + name + '(');
 
   return fnStr;
 };
