@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.5.0-unstable6.
+ * This file is part of Cytoscape.js 2.5.0-unstable7.
  *
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -3800,24 +3800,17 @@ var Element = _dereq_('./element');
 
 // factory for generating edge ids when no id is specified for a new element
 var idFactory = {
-  prefix: {
-    nodes: 'n',
-    edges: 'e'
-  },
-  id: {
-    nodes: 0,
-    edges: 0
-  },
+  prefix: 'ele',
+  id: 0,
   generate: function(cy, element, tryThisId){
     var json = is.element( element ) ? element._private : element;
-    var group = json.group;
-    var id = tryThisId != null ? tryThisId : this.prefix[group] + this.id[group];
+    var id = tryThisId != null ? tryThisId : this.prefix + this.id;
 
     if( cy.getElementById(id).empty() ){
-      this.id[group]++; // we've used the current id, so move it up
+      this.id++; // we've used the current id, so move it up
     } else { // otherwise keep trying successive unused ids
       while( !cy.getElementById(id).empty() ){
-        id = this.prefix[group] + ( ++this.id[group] );
+        id = this.prefix + ( ++this.id );
       }
     }
 
@@ -11025,7 +11018,7 @@ var defaults = {
   avoidOverlapPadding: 10, // extra spacing around nodes when avoidOverlap: true
   condense: false, // uses all available space on false, uses minimal space on true
   rows: undefined, // force num of rows in the grid
-  columns: undefined, // force num of cols in the grid
+  cols: undefined, // force num of columns in the grid
   position: function( node ){}, // returns { row, col } for element
   sort: undefined, // a sorting function to order the nodes; e.g. function(a, b){ return a.data('weight') - b.data('weight') }
   animate: false, // whether to transition the node positions
@@ -11094,15 +11087,18 @@ GridLayout.prototype.run = function(){
       }
     };
 
+    var oRows = options.rows;
+    var oCols = options.cols != null ? options.cols : options.columns;
+
     // if rows or columns were set in options, use those values
-    if( options.rows != null && options.columns != null ){
-      rows = options.rows;
-      cols = options.columns;
-    } else if( options.rows != null && options.columns == null ){
-      rows = options.rows;
+    if( oRows != null && oCols != null ){
+      rows = oRows;
+      cols = oCols;
+    } else if( oRows != null && oCols == null ){
+      rows = oRows;
       cols = Math.ceil( cells / rows );
-    } else if( options.rows == null && options.columns != null ){
-      cols = options.columns;
+    } else if( oRows == null && oCols != null ){
+      cols = oCols;
       rows = Math.ceil( cells / cols );
     }
 
@@ -11874,31 +11870,7 @@ BRp.findNearestElement = function(x, y, visibleElementsOnly, isTouch){
       return false;
     };
 
-    if( rs.edgeType === 'haystack' ){
-      var radius = style['haystack-radius'].value;
-      var halfRadius = radius/2; // b/c have to half width/height
-
-      var tgtPos = tgt._private.position;
-      var tgtW = tgt.width();
-      var tgtH = tgt.height();
-      var srcPos = src._private.position;
-      var srcW = src.width();
-      var srcH = src.height();
-
-      var startX = srcPos.x + rs.source.x * srcW * halfRadius;
-      var startY = srcPos.y + rs.source.y * srcH * halfRadius;
-      var endX = tgtPos.x + rs.target.x * tgtW * halfRadius;
-      var endY = tgtPos.y + rs.target.y * tgtH * halfRadius;
-
-      if(
-        (inEdgeBB = math.inLineVicinity(x, y, startX, startY, endX, endY, width2))
-          && passesVisibilityCheck() &&
-        widthSq > ( sqDist = math.sqDistanceToFiniteLine( x, y, startX, startY, endX, endY ) )
-      ){
-        near.push( edge );
-      }
-
-    } else if( rs.edgeType === 'segments' || rs.edgeType === 'straight' ){
+    if( rs.edgeType === 'segments' || rs.edgeType === 'straight' || rs.edgeType === 'haystack' ){
       var pts = rs.allpts;
 
       for( var i = 0; i + 3 < pts.length; i += 2 ){
@@ -13173,6 +13145,7 @@ BRp.findEdgeControlPoints = function(edges) {
   for( var i = 0; i < haystackEdges.length; i++ ){
     var edge = haystackEdges[i];
     var _p = edge._private;
+    var style = _p.style;
     var rscratch = _p.rscratch;
     var rs = rscratch;
 
@@ -18850,7 +18823,7 @@ var cytoscape = function( options ){ // jshint ignore:line
 };
 
 // replaced by build system
-cytoscape.version = '2.5.0-unstable6';
+cytoscape.version = '2.5.0-unstable7';
 
 // try to register w/ jquery
 if( window && window.jQuery ){
