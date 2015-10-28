@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.5.0-unstable8.
+ * This file is part of Cytoscape.js 2.5.0-unstable9.
  *
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -10582,7 +10582,6 @@ var createLayoutInfo = function(cy, layout, options) {
   var nodes = options.eles.nodes();
 
   var layoutInfo   = {
-    isLocked     : node.locked(),
     isCompound   : cy.hasCompoundNodes(),
     layoutNodes  : [],
     idToIndex    : {},
@@ -10618,6 +10617,7 @@ var createLayoutInfo = function(cy, layout, options) {
     var nbb = n.boundingBox();
 
     var tempNode        = {};
+    tempNode.isLocked   = n.locked();
     tempNode.id         = n.data('id');
     tempNode.parentId   = n.data('parent');
     tempNode.cmptId     = id2cmptId[ n.id() ];
@@ -18800,7 +18800,7 @@ var cytoscape = function( options ){ // jshint ignore:line
 };
 
 // replaced by build system
-cytoscape.version = '2.5.0-unstable8';
+cytoscape.version = '2.5.0-unstable9';
 
 // try to register w/ jquery
 if( window && window.jQuery ){
