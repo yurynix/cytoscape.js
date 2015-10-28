@@ -1,5 +1,5 @@
 /*!
- * This file is part of Cytoscape.js 2.5.0-unstable7.
+ * This file is part of Cytoscape.js 2.5.0-unstable8.
  *
  * Cytoscape.js is free software: you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by the Free
@@ -256,7 +256,6 @@ module.exports = Animation;
 'use strict';
 
 var is = _dereq_('../../is');
-var util = _dereq_('../../util');
 
 var elesfn = ({
 
@@ -451,7 +450,7 @@ var elesfn = ({
 
 module.exports = elesfn;
 
-},{"../../is":77,"../../util":94}],3:[function(_dereq_,module,exports){
+},{"../../is":77}],3:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../is');
@@ -651,7 +650,6 @@ module.exports = elesfn;
 'use strict';
 
 var is = _dereq_('../../is');
-var util = _dereq_('../../util');
 
 var elesfn = ({
 
@@ -814,7 +812,7 @@ var elesfn = ({
 
     return ret;
   } // betweennessCentrality
-  
+
 }); // elesfn
 
 // nice, short mathemathical alias
@@ -822,11 +820,10 @@ elesfn.bc = elesfn.betweennessCentrality;
 
 module.exports = elesfn;
 
-},{"../../is":77,"../../util":94}],5:[function(_dereq_,module,exports){
+},{"../../is":77}],5:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../is');
-var util = _dereq_('../../util');
 var Heap = _dereq_('../../heap');
 
 var defineSearch = function( params ){
@@ -1145,11 +1142,10 @@ elesfn.dfs = elesfn.depthFirstSearch;
 
 module.exports = elesfn;
 
-},{"../../heap":75,"../../is":77,"../../util":94}],6:[function(_dereq_,module,exports){
+},{"../../heap":75,"../../is":77}],6:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../is');
-var util = _dereq_('../../util');
 
 var elesfn = ({
 
@@ -1276,7 +1272,7 @@ elesfn.ccn = elesfn.closenessCentralityNormalised = elesfn.closenessCentralityNo
 
 module.exports = elesfn;
 
-},{"../../is":77,"../../util":94}],7:[function(_dereq_,module,exports){
+},{"../../is":77}],7:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../is');
@@ -1469,7 +1465,6 @@ module.exports = elesfn;
 'use strict';
 
 var is = _dereq_('../../is');
-var util = _dereq_('../../util');
 
 var elesfn = ({
 
@@ -1662,7 +1657,7 @@ var elesfn = ({
 
 module.exports = elesfn;
 
-},{"../../is":77,"../../util":94}],9:[function(_dereq_,module,exports){
+},{"../../is":77}],9:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../../util');
@@ -1688,7 +1683,6 @@ module.exports = elesfn;
 },{"../../util":94,"./a-star":2,"./bellman-ford":3,"./betweenness-centrality":4,"./bfs-dfs":5,"./closeness-centrality":6,"./degree-centrality":7,"./floyd-warshall":8,"./kerger-stein":10,"./page-rank":11}],10:[function(_dereq_,module,exports){
 'use strict';
 
-var is = _dereq_('../../is');
 var util = _dereq_('../../util');
 
 var elesfn = ({
@@ -1860,11 +1854,10 @@ var elesfn = ({
 
 module.exports = elesfn;
 
-},{"../../is":77,"../../util":94}],11:[function(_dereq_,module,exports){
+},{"../../util":94}],11:[function(_dereq_,module,exports){
 'use strict';
 
 var is = _dereq_('../../is');
-var util = _dereq_('../../util');
 
 var elesfn = ({
 
@@ -2044,7 +2037,7 @@ var elesfn = ({
 
 module.exports = elesfn;
 
-},{"../../is":77,"../../util":94}],12:[function(_dereq_,module,exports){
+},{"../../is":77}],12:[function(_dereq_,module,exports){
 'use strict';
 
 var define = _dereq_('../define');
@@ -2393,8 +2386,6 @@ module.exports = elesfn;
 'use strict';
 
 var define = _dereq_('../define');
-var is = _dereq_('../is');
-var util = _dereq_('../util');
 var fn, elesfn;
 
 fn = elesfn = ({
@@ -2480,7 +2471,7 @@ fn.removeAttr = fn.removeData;
 
 module.exports = elesfn;
 
-},{"../define":41,"../is":77,"../util":94}],17:[function(_dereq_,module,exports){
+},{"../define":41}],17:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -5858,7 +5849,6 @@ var corefn = ({
 
   startAnimationLoop: function(){
     var cy = this;
-    var style = cy.style;
 
     cy._private.animationsRunning = true;
 
@@ -6662,7 +6652,9 @@ util.extend(corefn, {
     if( domEle ){
       domEle._cyreg = null;
 
-      domEle.parentNode.removeChild( domEle );
+      while( domEle.childNodes.length > 0 ){
+        domEle.removeChild( domEle.childNodes[0] );
+      }
     }
 
     return cy;
@@ -6970,8 +6962,6 @@ module.exports = corefn;
 },{"../is":77,"../util":94}],36:[function(_dereq_,module,exports){
 'use strict';
 
-var Collection = _dereq_('../collection');
-
 var corefn = ({
   notify: function( params ){
     var _p = this._private;
@@ -7081,7 +7071,7 @@ var corefn = ({
 
 module.exports = corefn;
 
-},{"../collection":23}],37:[function(_dereq_,module,exports){
+},{}],37:[function(_dereq_,module,exports){
 'use strict';
 
 var util = _dereq_('../util');
@@ -11901,9 +11891,6 @@ BRp.findNearestElement = function(x, y, visibleElementsOnly, isTouch){
       var src = src || _p.source;
       var tgt = tgt || _p.target;
 
-      var tgtPos = tgt._private.position;
-      var srcPos = src._private.position;
-
       var eWidth = style['width'].pfValue;
       var arSize = self.getArrowWidth( eWidth );
 
@@ -12054,8 +12041,6 @@ BRp.getAllInBox = function(x1, y1, x2, y2) {
     x2: x2, y2: y2
   });
 
-  var heur;
-
   for ( var i = 0; i < nodes.length; i++ ){
     var node = nodes[i];
     var nodeBb = node.boundingBox({
@@ -12073,8 +12058,6 @@ BRp.getAllInBox = function(x1, y1, x2, y2) {
     var edge = edges[e];
     var _p = edge._private;
     var rs = _p.rscratch;
-    var src = _p.source;
-    var tgt = _p.target;
 
     if( rs.startX != null && rs.startY != null && !math.inBoundingBox( boxBb, rs.startX, rs.startY ) ){ continue; }
     if( rs.endX != null && rs.endY != null && !math.inBoundingBox( boxBb, rs.endX, rs.endY ) ){ continue; }
@@ -12183,7 +12166,6 @@ BRp.getCachedZSortedEles = function( forceRecalc ){
 function pushBezierPts(edge, pts){
   var qbezierAt = function( p1, p2, p3, t ){ return math.qbezierAt(p1, p2, p3, t); };
   var _p = edge._private;
-  var rs = _p.rscratch;
   var bpts = _p.rstyle.bezierPts;
 
   bpts.push({
@@ -12204,7 +12186,7 @@ function pushBezierPts(edge, pts){
   bpts.push({
     x: qbezierAt( pts[0], pts[2], pts[4], 0.5 ),
     y: qbezierAt( pts[1], pts[3], pts[5], 0.5 )
-  })
+  });
 
   bpts.push({
     x: qbezierAt( pts[0], pts[2], pts[4], 0.6 ),
@@ -12306,7 +12288,6 @@ BRp.recalculateEdgeLabelProjection = function( edge ){
   if( !content || content.match(/^\s+$/) ){ return; }
 
   var textX, textY;
-  var edgeCenterX, edgeCenterY;
   var _p = edge._private;
   var rs = _p.rscratch;
   //var style = _p.style;
@@ -12743,7 +12724,8 @@ BRp.findEdgeControlPoints = function(edges) {
       var numEdges1 = rs.lastNumEdges;
       var numEdges2 = pairEdges.length;
 
-      var eStyle = style = edge_p.style;
+      var eStyle = edge_p.style;
+      var style = eStyle;
       var curveStyle = eStyle['curve-style'].value;
       var ctrlptDists = eStyle['control-point-distances'];
       var ctrlptWs = eStyle['control-point-weights'];
@@ -13212,10 +13194,11 @@ var getAngleFromDisp = function( dispX, dispY ){
 
 BRp.calculateArrowAngles = function( edge ){
   var rs = edge._private.rscratch;
-  var self = this;
   var isHaystack = rs.edgeType === 'haystack';
   var isMultibezier = rs.edgeType === 'multibezier';
   var isSegments = rs.edgeType === 'segments';
+  var isCompound = rs.edgeType === 'compound';
+  var isSelf = rs.edgeType === 'self';
 
   // Displacement gives direction for arrowhead orientation
   var dispX, dispY;
@@ -13235,8 +13218,6 @@ BRp.calculateArrowAngles = function( edge ){
     endX = rs.arrowEndX;
     endY = rs.arrowEndY;
   }
-
-  var style = edge._private.style;
 
   // source
   //
@@ -13260,10 +13241,10 @@ BRp.calculateArrowAngles = function( edge ){
   dispX = endX - startX;
   dispY = endY - startY;
 
-  if( rs.edgeType === 'self' ){
+  if( isSelf ){
     dispX = -1;
     dispY = 1;
-  } else if( rs.edgeType === 'segments' ){
+  } else if( isSegments ){
     var pts = rs.allpts;
 
     if( pts.length / 2 % 2 === 0 ){
@@ -13277,10 +13258,10 @@ BRp.calculateArrowAngles = function( edge ){
       var i1 = i2 - 2;
       var i3 = i2 + 2;
 
-      dispX = -( pts[i2] - pts[i1] );
-      dispY = -( pts[i2+1] - pts[i1+1] );
+      dispX = ( pts[i2] - pts[i1] );
+      dispY = ( pts[i2+1] - pts[i1+1] );
     }
-  } else if( rs.edgeType === 'multibezier' || rs.edgeType === 'compound' ){
+  } else if( isMultibezier || isCompound ){
     var pts = rs.allpts;
     var cpts = rs.ctrlpts;
     var bp0x, bp0y;
@@ -13323,18 +13304,17 @@ BRp.calculateArrowAngles = function( edge ){
   dispX *= -1;
   dispY *= -1;
 
-  if( rs.edgeType === 'segments' ){
+  if( isSegments ){
     var pts = rs.allpts;
 
     if( pts.length / 2 % 2 === 0 ){
       // already ok
     } else {
       var i2 = pts.length / 2 - 1;
-      var i1 = i2 - 2;
       var i3 = i2 + 2;
 
-      dispX = ( pts[i3] - pts[i2] );
-      dispY = ( pts[i3+1] - pts[i2+1] );
+      dispX = -( pts[i3] - pts[i2] );
+      dispY = -( pts[i3+1] - pts[i2+1] );
     }
   }
 
@@ -13875,7 +13855,9 @@ BRp.load = function() {
       }
     });
 
-    r.removeObserver.observe( r.container.parentNode, { childList: true } );
+    if( r.container.parentNode ){
+      r.removeObserver.observe( r.container.parentNode, { childList: true } );
+    }
   } else {
     r.registerBinding(r.container, 'DOMNodeRemoved', function(e){
       r.destroy();
@@ -15043,14 +15025,18 @@ BRp.load = function() {
 
         if( rdist2 >= r.touchTapThreshold2 ){ // then dragging can happen
           var draggedEles = r.dragData.touchDragEles;
+          var justStartedDrag = !r.dragData.didDrag;
 
           for( var k = 0; k < draggedEles.length; k++ ){
             var draggedEle = draggedEles[k];
 
+            if( justStartedDrag ){
+              addNodeToDrag( draggedEle, { inDragLayer: true } );
+            }
+
             if( r.nodeIsDraggable(draggedEle) && draggedEle.isNode() && draggedEle.grabbed() ){
               r.dragData.didDrag = true;
               var dPos = draggedEle._private.position;
-              var justStartedDrag = !r.hoverData.draggingEles;
               var updatePos = !draggedEle.isParent();
 
               if( updatePos && is.number(disp[0]) && is.number(disp[1]) ){
@@ -15059,8 +15045,6 @@ BRp.load = function() {
               }
 
               if( justStartedDrag ){
-                addNodeToDrag( draggedEle, { inDragLayer: true } );
-
                 r.redrawHint('eles', true);
 
                 var dragDelta = r.touchData.dragDelta;
@@ -15074,7 +15058,7 @@ BRp.load = function() {
             }
           }
 
-          var tcol = Collection(cy, draggedEle);
+          var tcol = Collection(cy, draggedEles);
 
           tcol.updateCompoundBounds();
           tcol.trigger('position drag');
@@ -15944,11 +15928,6 @@ CRp.drawEdge = function(context, edge, drawOverlayInstead) {
 
     context.lineCap = 'butt';
   }
-
-  var source = edge._private.source;
-  var target = edge._private.target;
-  var srcPos = source._private.position;
-  var tgtPos = target._private.position;
 
   var edgeWidth = style['width'].pfValue + (drawOverlayInstead ? 2 * overlayPadding : 0);
   var lineStyle = drawOverlayInstead ? 'solid' : style['line-style'].value;
@@ -17465,8 +17444,6 @@ CRp.render = function( options ) {
   var hideLabels = r.hideLabelsOnViewport && vpManip;
 
   if (needDraw[r.DRAG] || needDraw[r.NODE] || drawAllLayers || drawOnlyNodeLayer) {
-    // NB : VERY EXPENSIVE
-
     if( hideEdges ){
     } else {
       r.findEdgeControlPoints(edges);
@@ -18823,7 +18800,7 @@ var cytoscape = function( options ){ // jshint ignore:line
 };
 
 // replaced by build system
-cytoscape.version = '2.5.0-unstable7';
+cytoscape.version = '2.5.0-unstable8';
 
 // try to register w/ jquery
 if( window && window.jQuery ){
@@ -21063,7 +21040,7 @@ selfn.toString = selfn.selector = function(){
     }
 
     for(var j = 0; j < query.classes.length; j++){
-      var sel = '.' + query.classes[i];
+      var sel = '.' + query.classes[j];
       str += sel;
     }
 
@@ -22415,7 +22392,7 @@ var parseImpl = function( name, value, propIsBypass, propIsFlat ){
       vals = [ value ];
     }
 
-    if( type.evenMultiple && vals.length % 2 !== 0 ){ return null; };
+    if( type.evenMultiple && vals.length % 2 !== 0 ){ return null; }
 
     var valArr = vals.map(function( v ){
       var p = self.parse( name, v, propIsBypass, true );
@@ -24368,7 +24345,7 @@ module.exports = {
     return str.charAt(0).toUpperCase() + str.substring(1);
   }
 
-}
+};
 
 },{"../is":77,"./memoize":96}],99:[function(_dereq_,module,exports){
 'use strict';
